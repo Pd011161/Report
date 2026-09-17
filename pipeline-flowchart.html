@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Video Factory Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F3F6F7;
+    --card: #FFFFFF;
+    --ink: #16232B;
+    --ink-soft: #52646E;
+    --line: #DAE3E6;
+    --teal: #0E6E6E;
+    --teal-soft: #E1F0EF;
+    --amber: #C1631A;
+    --amber-soft: #FAE7D3;
+    --chip: #F6FAFA;
+    --shadow: 0 1px 2px rgba(22,35,43,0.04), 0 6px 16px rgba(22,35,43,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0F1718;
+      --card: #16211F;
+      --ink: #E8EFEE;
+      --ink-soft: #93A8A3;
+      --line: #26332F;
+      --teal: #3FB3A6;
+      --teal-soft: #163634;
+      --amber: #E3944C;
+      --amber-soft: #3A2A17;
+      --chip: #1B2826;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0F1718;
+    --card: #16211F;
+    --ink: #E8EFEE;
+    --ink-soft: #93A8A3;
+    --line: #26332F;
+    --teal: #3FB3A6;
+    --teal-soft: #163634;
+    --amber: #E3944C;
+    --amber-soft: #3A2A17;
+    --chip: #1B2826;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Sarabun', 'Noto Sans Thai', sans-serif;
+    padding-inline: 20px;
+    padding-block: 40px 56px;
+  }
+  .page { max-width: 1140px; margin-inline: auto; }
+
+  header { margin-bottom: 22px; }
+  .eyebrow {
+    display: inline-block;
+    font-family: 'Kanit', sans-serif;
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    color: var(--teal);
+    background: var(--teal-soft);
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-family: 'Kanit', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.1rem);
+    line-height: 1.25;
+    text-wrap: balance;
+    margin: 0 0 8px;
+  }
+  .subtitle {
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ── tabs ── */
+  .tabs {
+    display: inline-flex;
+    gap: 4px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px;
+    margin-bottom: 28px;
+    box-shadow: var(--shadow);
+  }
+  .tab-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: 'Kanit', sans-serif;
+    font-weight: 600;
+    font-size: 0.86rem;
+    padding: 7px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .tab-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  .tab-btn.active { background: var(--teal); color: #FFFFFF; }
+  :root[data-theme="dark"] .tab-btn.active, .tab-btn.active { color: #FFFFFF; }
+
+  figure { margin: 0; }
+
+  /* ── overview (level 1) ── */
+  .pipeline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 18px 6px;
+  }
+  .step-card {
+    flex: 1 1 180px;
+    max-width: 210px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 16px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .step-top { display: flex; align-items: center; gap: 9px; }
+  .step-num {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--teal-soft);
+    color: var(--teal);
+    font-family: 'Kanit', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-icon { flex: none; color: var(--teal); width: 22px; height: 22px; }
+  .step-icon svg { width: 100%; height: 100%; display: block; }
+  .step-title {
+    font-family: 'Kanit', sans-serif;
+    font-weight: 600;
+    font-size: 0.98rem;
+    line-height: 1.3;
+    margin: 0;
+  }
+  .step-desc { font-size: 0.78rem; color: var(--ink-soft); line-height: 1.55; margin: 0; }
+  .tools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; padding-top: 4px; }
+  .tool-tag { font-size: 0.63rem; line-height: 1.4; padding: 2px 9px; border-radius: 999px; background: var(--teal-soft); color: var(--teal); font-weight: 600; }
+  .tool-tag.util { background: transparent; border: 1px dashed var(--line); color: var(--ink-soft); }
+  .tool-tag.current { background: var(--teal); color: #FFFFFF; }
+  .tool-tag.current::before { content: "●"; font-size: 0.5em; vertical-align: 0.25em; margin-inline-end: 4px; }
+
+  /* ── legend (shared by both views) ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 12px 14px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-size: 0.74rem;
+    color: var(--ink-soft);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+
+  /* ── summary (shared, bottom of both views) ── */
+  .summary {
+    margin-top: 40px;
+    padding-top: 28px;
+    border-top: 2px solid var(--line);
+  }
+  .summary h2 {
+    font-family: 'Kanit', sans-serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    margin: 0 0 6px;
+  }
+  .summary-intro { font-size: 0.82rem; color: var(--ink-soft); margin: 0 0 22px; max-width: 64ch; line-height: 1.6; }
+  .sum-group { margin-bottom: 22px; }
+  .sum-label {
+    font-family: 'Kanit', sans-serif;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--ink);
+    margin: 0 0 4px;
+  }
+  .sum-row {
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+    padding: 9px 2px;
+    border-top: 1px solid var(--line);
+  }
+  .sum-name { flex: 0 0 180px; }
+  .sum-desc { flex: 1 1 260px; font-size: 0.8rem; line-height: 1.55; }
+  .sum-steps {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .detail-head { flex-wrap: wrap; }
+  .detail-head .tools { margin-left: auto; margin-top: 0; padding-top: 0; }
+
+  .connector {
+    flex: 0 0 58px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding-block: 4px;
+  }
+  .connector svg { width: 34px; height: 14px; color: var(--teal); flex: none; }
+  .connector-label {
+    font-size: 0.62rem;
+    color: var(--ink-soft);
+    text-align: center;
+    line-height: 1.35;
+    max-width: 78px;
+  }
+
+  .output {
+    flex: 1 1 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding: 12px 16px;
+    background: var(--amber-soft);
+    border: 1px solid var(--amber);
+    border-radius: 12px;
+    max-width: 340px;
+  }
+  .output-icon { flex: none; width: 24px; height: 24px; color: var(--amber); }
+  .output-icon svg { width: 100%; height: 100%; display: block; }
+  .output-text { font-family: 'Kanit', sans-serif; font-weight: 600; font-size: 0.86rem; color: var(--amber); }
+
+  figcaption {
+    margin-top: 20px;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    max-width: 68ch;
+  }
+
+  /* ── detail (level 2) ── */
+  .detail-flow { display: flex; flex-direction: column; }
+  .detail-step {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .detail-head { display: flex; align-items: center; gap: 10px; }
+  .detail-title {
+    font-family: 'Kanit', sans-serif;
+    font-weight: 600;
+    font-size: 1.02rem;
+    margin: 0;
+  }
+  .substeps {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .subchip {
+    background: var(--chip);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 7px 11px;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+  .subarrow { flex: none; width: 20px; height: 12px; color: var(--teal); }
+
+  .detail-connector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 4px 10px 26px;
+  }
+  .detail-connector svg { width: 30px; height: 13px; color: var(--teal); transform: rotate(90deg); flex: none; }
+  .detail-connector span { font-size: 0.68rem; color: var(--ink-soft); }
+
+  @media (max-width: 880px) {
+    .pipeline { flex-direction: column; }
+    .step-card { flex: none; max-width: 100%; width: 100%; }
+    .connector {
+      flex: none;
+      width: 100%;
+      flex-direction: row;
+      justify-content: flex-start;
+      padding-inline-start: 12px;
+    }
+    .connector svg { transform: rotate(90deg); }
+    .connector-label { max-width: none; text-align: left; }
+    .output { max-width: 100%; }
+    .sum-row { flex-direction: column; gap: 5px; }
+    .sum-name { flex: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <span class="eyebrow">AI VIDEO FACTORY</span>
+    <h1>กระบวนการผลิตวิดีโอด้วย AI</h1>
+    <p class="subtitle">7 ขั้นตอนหลักของระบบ ตั้งแต่ค้นคว้าหัวข้อจนถึงไฟล์วิดีโอฉบับสมบูรณ์ — สลับดูภาพรวมหรือรายละเอียดกระบวนการย่อยในแต่ละขั้นได้จากปุ่มด้านล่าง</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="เลือกมุมมอง">
+    <button class="tab-btn active" id="tab-overview" role="tab" aria-selected="true" aria-controls="view-overview">ภาพรวม</button>
+    <button class="tab-btn" id="tab-detail" role="tab" aria-selected="false" aria-controls="view-detail">รายละเอียดแต่ละขั้น</button>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item"><span class="tool-tag current">โมเดล</span> ใช้งานอยู่ปัจจุบัน</span>
+    <span class="legend-item"><span class="tool-tag">โมเดล</span> โมเดล AI อื่นที่ระบบรองรับ (สลับได้จาก config)</span>
+    <span class="legend-item"><span class="tool-tag util">เครื่องมือ</span> เครื่องมือประมวลผล — ไม่ใช้ AI</span>
+  </div>
+
+  <!-- ═══ LEVEL 1 : overview ═══ -->
+  <section id="view-overview" role="tabpanel" aria-labelledby="tab-overview">
+  <figure>
+    <div class="pipeline">
+
+      <div class="step-card">
+        <div class="step-top">
+          <span class="step-num">1</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14.6" y1="14.6" x2="20" y2="20"/></svg>
+          </span>
+        </div>
+        <p class="step-title">วิจัยหัวข้อ</p>
+        <p class="step-desc">ค้นคว้าหัวข้อและวิเคราะห์คลิปอ้างอิง สรุปวัตถุดิบ อุปกรณ์ และมุมนำเสนอ</p>
+        <div class="tools"><span class="tool-tag current">Gemini 2.5 Flash</span><span class="tool-tag">Tavily Search</span></div>
+      </div>
+
+      <div class="connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span class="connector-label">หัวข้อ + วัตถุดิบ/อุปกรณ์</span>
+      </div>
+
+      <div class="step-card">
+        <div class="step-top">
+          <span class="step-num">2</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
+          </span>
+        </div>
+        <p class="step-title">เขียนบท</p>
+        <p class="step-desc">AI ร่างบทพากย์เต็มเรื่อง ล็อกรายการวัตถุดิบ-อุปกรณ์ตามผลวิจัย</p>
+        <div class="tools"><span class="tool-tag current">Gemini 2.5 Flash</span></div>
+      </div>
+
+      <div class="connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span class="connector-label">บทพากย์ (script)</span>
+      </div>
+
+      <div class="step-card">
+        <div class="step-top">
+          <span class="step-num">3</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+          </span>
+        </div>
+        <p class="step-title">แตกสตอรี่บอร์ด</p>
+        <p class="step-desc">แบ่งบทเป็นฉาก/ช็อต พร้อม prompt ภาพและจังหวะตัดต่อของแต่ละช็อต</p>
+        <div class="tools"><span class="tool-tag current">Gemini 2.5 Flash</span><span class="tool-tag util">กฎอัตโนมัติ (Python)</span></div>
+      </div>
+
+      <div class="connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span class="connector-label">รายช็อต + prompt ภาพ</span>
+      </div>
+
+      <div class="step-card">
+        <div class="step-top">
+          <span class="step-num">4</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><polyline points="4,18 9,12 13,15 16,11 20,16"/></svg>
+          </span>
+        </div>
+        <p class="step-title">สร้างภาพต้นแบบ</p>
+        <p class="step-desc">สร้างภาพคีย์เฟรมของทุกช็อตด้วย AI อ้างอิงคน ฉาก และแบรนด์ให้สม่ำเสมอ</p>
+        <div class="tools"><span class="tool-tag current">gpt-image-2</span><span class="tool-tag">Gemini Image</span></div>
+      </div>
+
+      <div class="connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span class="connector-label">ภาพต้นแบบต่อช็อต</span>
+      </div>
+
+      <div class="step-card">
+        <div class="step-top">
+          <span class="step-num">5</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-4 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><circle cx="8" cy="10.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="10.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="16" cy="10.5" r="0.9" fill="currentColor" stroke="none"/></svg>
+          </span>
+        </div>
+        <p class="step-title">เขียน Prompt วิดีโอ</p>
+        <p class="step-desc">แปลงภาพและทิศทางฉากเป็นคำสั่งสร้างวิดีโอ ทั้งการเคลื่อนกล้องและการเชื่อมช็อต</p>
+        <div class="tools"><span class="tool-tag current">Gemini 2.5 Flash</span></div>
+      </div>
+
+      <div class="connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span class="connector-label">prompt วิดีโอต่อช็อต</span>
+      </div>
+
+      <div class="step-card">
+        <div class="step-top">
+          <span class="step-num">6</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="10,8 17,12 10,16" fill="currentColor" stroke="none"/></svg>
+          </span>
+        </div>
+        <p class="step-title">สร้างวิดีโอ</p>
+        <p class="step-desc">เรนเดอร์คลิปแต่ละช็อตด้วย AI พร้อมแก้ไข ครอป ตัดต่อ และใส่เสียงพากย์</p>
+        <div class="tools"><span class="tool-tag">Veo 3.1 Fast</span><span class="tool-tag current">Gemini Omni Flash</span><span class="tool-tag">Gemini TTS</span><span class="tool-tag util">ffmpeg</span></div>
+      </div>
+
+      <div class="connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span class="connector-label">คลิปวิดีโอต่อช็อต</span>
+      </div>
+
+      <div class="step-card">
+        <div class="step-top">
+          <span class="step-num">7</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="5" x2="14" y2="12"/><line x1="4" y1="19" x2="14" y2="12"/><line x1="14" y1="12" x2="20" y2="12"/><polygon points="20,12 16,9.3 16,14.7" fill="currentColor" stroke="none"/></svg>
+          </span>
+        </div>
+        <p class="step-title">รวมวิดีโอ</p>
+        <p class="step-desc">ต่อคลิปทุกช็อตตามลำดับ พร้อม Intro / End credit และซับไตเติล</p>
+        <div class="tools"><span class="tool-tag util">ffmpeg (ไม่ใช้ AI)</span></div>
+      </div>
+
+      <div class="output">
+        <span class="output-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><polygon points="9,8 16,12 9,16" fill="currentColor" stroke="none"/></svg>
+        </span>
+        <span class="output-text">วิดีโอฉบับสมบูรณ์ (.mp4)</span>
+      </div>
+
+    </div>
+    <figcaption>ลำดับการทำงานของ AI Video Factory จากหัวข้อวิจัยจนถึงไฟล์วิดีโอที่พร้อมเผยแพร่ แต่ละขั้นตอนส่งต่อผลลัพธ์ให้ขั้นถัดไปตามลูกศร · ป้ายในการ์ดบอก model และ tool ที่ขั้นนั้นใช้ (ดูคำอธิบายแต่ละตัวได้ที่ตารางสรุปด้านล่าง)</figcaption>
+  </figure>
+  </section>
+
+  <!-- ═══ LEVEL 2 : detail ═══ -->
+  <section id="view-detail" role="tabpanel" aria-labelledby="tab-detail" hidden>
+  <figure>
+    <div class="detail-flow">
+
+      <div class="detail-step">
+        <div class="detail-head">
+          <span class="step-num">1</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14.6" y1="14.6" x2="20" y2="20"/></svg>
+          </span>
+          <p class="detail-title">วิจัยหัวข้อ</p>
+          <div class="tools"><span class="tool-tag current">Gemini 2.5 Flash</span><span class="tool-tag">Tavily Search</span></div>
+        </div>
+        <div class="substeps">
+          <span class="subchip">รับหัวข้อ + ลิงก์คลิปอ้างอิง</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">วิเคราะห์คลิป / ค้นคว้าข้อมูล</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">สรุปผลวิจัย + สกัดรายการวัตถุดิบ-อุปกรณ์</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">สร้าง Menu config ให้อัตโนมัติ</span>
+        </div>
+      </div>
+
+      <div class="detail-connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span>หัวข้อ + วัตถุดิบ/อุปกรณ์</span>
+      </div>
+
+      <div class="detail-step">
+        <div class="detail-head">
+          <span class="step-num">2</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
+          </span>
+          <p class="detail-title">เขียนบท</p>
+          <div class="tools"><span class="tool-tag current">Gemini 2.5 Flash</span></div>
+        </div>
+        <div class="substeps">
+          <span class="subchip">อ่านผลวิจัย + Menu config</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">AI ร่างบทพากย์เต็มเรื่อง แบ่งตอน/ฉาก</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">ตรวจครบฉากแนะนำวัตถุดิบ/อุปกรณ์</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">แก้ไขรายส่วน + เก็บเป็นเวอร์ชัน</span>
+        </div>
+      </div>
+
+      <div class="detail-connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span>บทพากย์ (script)</span>
+      </div>
+
+      <div class="detail-step">
+        <div class="detail-head">
+          <span class="step-num">3</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+          </span>
+          <p class="detail-title">แตกสตอรี่บอร์ด</p>
+          <div class="tools"><span class="tool-tag current">Gemini 2.5 Flash</span><span class="tool-tag util">กฎอัตโนมัติ (Python)</span></div>
+        </div>
+        <div class="substeps">
+          <span class="subchip">แบ่งบทเป็นฉาก / ช็อต</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">กำหนดการเชื่อมช็อต (ตัด / ต่อเนื่อง / match cut)</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">เขียน prompt ภาพ + ข้อความบนจอ + เสียงพากย์ต่อช็อต</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">กฎอัตโนมัติคุมความถูกต้อง (ภาชนะ ฉาก ฯลฯ)</span>
+        </div>
+      </div>
+
+      <div class="detail-connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span>รายช็อต + prompt ภาพ</span>
+      </div>
+
+      <div class="detail-step">
+        <div class="detail-head">
+          <span class="step-num">4</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><polyline points="4,18 9,12 13,15 16,11 20,16"/></svg>
+          </span>
+          <p class="detail-title">สร้างภาพต้นแบบ</p>
+          <div class="tools"><span class="tool-tag current">gpt-image-2</span><span class="tool-tag">Gemini Image</span><span class="tool-tag util">Pillow — ครอป</span></div>
+        </div>
+        <div class="substeps">
+          <span class="subchip">เลือกภาพอ้างอิงอัตโนมัติ (คน / ฉากแบรนด์ / วัตถุดิบ)</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">สร้างภาพคีย์เฟรมต่อช็อตด้วย AI</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">แก้ด้วยข้อความ / ครอป-ซูม / อัปโหลดแทนที่</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">บันทึกอัตโนมัติ + ย้อนกลับได้</span>
+        </div>
+      </div>
+
+      <div class="detail-connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span>ภาพต้นแบบต่อช็อต</span>
+      </div>
+
+      <div class="detail-step">
+        <div class="detail-head">
+          <span class="step-num">5</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-4 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><circle cx="8" cy="10.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="10.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="16" cy="10.5" r="0.9" fill="currentColor" stroke="none"/></svg>
+          </span>
+          <p class="detail-title">เขียน Prompt วิดีโอ</p>
+          <div class="tools"><span class="tool-tag current">Gemini 2.5 Flash</span></div>
+        </div>
+        <div class="substeps">
+          <span class="subchip">อ่านภาพต้นแบบ + ทิศทางฉาก</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">เขียนคำสั่งเคลื่อนกล้อง / การแสดงต่อช็อต</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">ผูกภาพอ้างอิงที่ต้องส่ง (เฟรมแรก / คน / ฉาก)</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">แผงตรวจสอบภาพอ้างอิงก่อนเรนเดอร์</span>
+        </div>
+      </div>
+
+      <div class="detail-connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span>prompt วิดีโอต่อช็อต</span>
+      </div>
+
+      <div class="detail-step">
+        <div class="detail-head">
+          <span class="step-num">6</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="10,8 17,12 10,16" fill="currentColor" stroke="none"/></svg>
+          </span>
+          <p class="detail-title">สร้างวิดีโอ</p>
+          <div class="tools"><span class="tool-tag">Veo 3.1 Fast</span><span class="tool-tag current">Gemini Omni Flash</span><span class="tool-tag">Gemini TTS</span><span class="tool-tag util">Demucs</span><span class="tool-tag util">ffmpeg</span></div>
+        </div>
+        <div class="substeps">
+          <span class="subchip">เรนเดอร์คลิปต่อช็อต (ภาพ → วิดีโอ, ต่อเนื่องจากช็อตก่อนหน้า)</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">แก้คลิปด้วย AI / ครอป-ซูม / ตัดช่วงเวลา</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">เสียงพากย์ (revoice) + เบิร์นซับตามช่วงพูด</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">ประวัติเวอร์ชัน + ย้อนกลับได้</span>
+        </div>
+      </div>
+
+      <div class="detail-connector">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span>คลิปวิดีโอต่อช็อต</span>
+      </div>
+
+      <div class="detail-step">
+        <div class="detail-head">
+          <span class="step-num">7</span>
+          <span class="step-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="5" x2="14" y2="12"/><line x1="4" y1="19" x2="14" y2="12"/><line x1="14" y1="12" x2="20" y2="12"/><polygon points="20,12 16,9.3 16,14.7" fill="currentColor" stroke="none"/></svg>
+          </span>
+          <p class="detail-title">รวมวิดีโอ</p>
+          <div class="tools"><span class="tool-tag util">ffmpeg (ไม่ใช้ AI)</span></div>
+        </div>
+        <div class="substeps">
+          <span class="subchip">เรียงคลิปทุกช็อตตามลำดับสตอรี่บอร์ด</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">ต่อ Intro นำหน้า + End credit ปิดท้าย (จาก config)</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">รวมไฟล์แบบไม่ลดคุณภาพ (lossless)</span>
+          <svg class="subarrow" viewBox="0 0 24 12" aria-hidden="true"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2"/><polygon points="17,2 23,6 17,10" fill="currentColor"/></svg>
+          <span class="subchip">ดาวน์โหลดไฟล์วิดีโอฉบับสมบูรณ์</span>
+        </div>
+      </div>
+
+      <div class="detail-connector" style="padding-bottom:0">
+        <svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg>
+        <span></span>
+      </div>
+
+      <div class="output">
+        <span class="output-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><polygon points="9,8 16,12 9,16" fill="currentColor" stroke="none"/></svg>
+        </span>
+        <span class="output-text">วิดีโอฉบับสมบูรณ์ (.mp4)</span>
+      </div>
+
+    </div>
+    <figcaption>กระบวนการย่อยภายในแต่ละขั้นตอน — กล่องย่อยเรียงตามลำดับการทำงานจริงในระบบ ลูกศรระหว่างขั้นบอกผลลัพธ์ที่ส่งต่อ · ป้ายบนหัวข้อบอก model และ tool ที่ขั้นนั้นใช้ (ดูคำอธิบายแต่ละตัวได้ที่ตารางสรุปด้านล่าง)</figcaption>
+  </figure>
+  </section>
+
+  <section class="summary" aria-labelledby="summary-h">
+    <h2 id="summary-h">สรุป Model และ Tool ที่ใช้ในระบบ</h2>
+    <p class="summary-intro">หมายเหตุ — ป้ายทึบคือโมเดลที่ระบบใช้งานอยู่จริงในปัจจุบัน ส่วนโมเดลอื่นตั้งค่าไว้ในระบบและสลับมาใช้แทนได้โดยไม่ต้องแก้โค้ด</p>
+
+    <div class="sum-group">
+      <p class="sum-label">โมเดล AI ที่ใช้งานอยู่ปัจจุบัน</p>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag current">Gemini 2.5 Flash</span></span><span class="sum-desc">งานข้อความทั้งหมด — สรุปผลวิจัย เขียนบทพากย์ แตกสตอรี่บอร์ด และเขียน prompt ของภาพและวิดีโอ</span><span class="sum-steps">ขั้น 1–3, 5</span></div>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag current">gpt-image-2</span></span><span class="sum-desc">สร้างภาพคีย์เฟรมของแต่ละช็อต และแก้ไขภาพเฉพาะจุดตามคำสั่ง</span><span class="sum-steps">ขั้น 4</span></div>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag current">Gemini Omni Flash</span></span><span class="sum-desc">สร้างและแก้ไขคลิปวิดีโอต่อเนื่องจากภาพต้นแบบและคลิปก่อนหน้า</span><span class="sum-steps">ขั้น 6</span></div>
+    </div>
+
+    <div class="sum-group">
+      <p class="sum-label">โมเดล AI อื่นที่ระบบรองรับ</p>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag">Veo 3.1 Fast</span></span><span class="sum-desc">เรนเดอร์คลิปจากภาพนิ่ง (image-to-video) โหมดมาตรฐาน ตั้งค่าไว้ใน config</span><span class="sum-steps">ขั้น 6</span></div>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag">Gemini Image</span></span><span class="sum-desc">สร้างภาพคีย์เฟรม สลับมาใช้แทน gpt-image-2 ได้จาก config</span><span class="sum-steps">ขั้น 4</span></div>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag">Gemini TTS</span></span><span class="sum-desc">สังเคราะห์เสียงพากย์ภาษาไทยทับคลิป ใช้เมื่อสั่งทำเสียงใหม่ (revoice)</span><span class="sum-steps">ขั้น 6</span></div>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag">Tavily Search</span></span><span class="sum-desc">บริการค้นหาข้อมูลอ้างอิงบนเว็บ ป้อนให้ขั้นวิจัย</span><span class="sum-steps">ขั้น 1</span></div>
+    </div>
+
+    <div class="sum-group">
+      <p class="sum-label">เครื่องมือประมวลผล (ไม่ใช้ AI)</p>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag util">ffmpeg</span></span><span class="sum-desc">ครอป ตัดช่วงเวลา ต่อคลิป ใส่ซับไตเติล และรวมไฟล์ปลายทางแบบไม่ลดคุณภาพ</span><span class="sum-steps">ขั้น 6–7</span></div>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag util">Pillow</span></span><span class="sum-desc">ครอปและย่อ-ขยายภาพให้ได้ขนาดพิกเซลเท่าเดิม</span><span class="sum-steps">ขั้น 4</span></div>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag util">Demucs</span></span><span class="sum-desc">แยกเสียงพูดออกจากเสียงบรรยากาศก่อนใส่เสียงพากย์ใหม่</span><span class="sum-steps">ขั้น 6</span></div>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag util">กฎอัตโนมัติ (Python)</span></span><span class="sum-desc">ตรวจและแก้ prompt ให้ตรงกฎที่กำหนด เช่น ภาชนะ ฉาก และข้อความบนจอ</span><span class="sum-steps">ขั้น 3</span></div>
+      <div class="sum-row"><span class="sum-name"><span class="tool-tag util">PostgreSQL + AWS S3</span></span><span class="sum-desc">จัดเก็บข้อมูลงานและประวัติเวอร์ชัน พร้อมไฟล์ภาพและวิดีโอทั้งหมด</span><span class="sum-steps">ทุกขั้น</span></div>
+    </div>
+  </section>
+</div>
+
+<script>
+  const views = [["tab-overview", "view-overview"], ["tab-detail", "view-detail"]];
+  views.forEach(([btnId, viewId]) => {
+    document.getElementById(btnId).addEventListener("click", () => {
+      views.forEach(([b, v]) => {
+        document.getElementById(v).hidden = v !== viewId;
+        const btn = document.getElementById(b);
+        btn.classList.toggle("active", b === btnId);
+        btn.setAttribute("aria-selected", b === btnId ? "true" : "false");
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
