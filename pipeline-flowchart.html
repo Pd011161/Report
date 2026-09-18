@@ -169,6 +169,44 @@
   .tool-tag.current { background: var(--teal); color: #FFFFFF; }
   .tool-tag.current::before { content: "●"; font-size: 0.5em; vertical-align: 0.25em; margin-inline-end: 4px; }
 
+
+  /* ── system design (level 3) ── */
+  .sys { display: flex; flex-direction: column; }
+  .layer {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 15px 17px;
+  }
+  .layer-head { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-bottom: 11px; }
+  .layer-name { font-family: 'Kanit', sans-serif; font-weight: 600; font-size: 0.98rem; margin: 0; }
+  .layer-note { font-size: 0.72rem; color: var(--ink-soft); }
+  .parts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .part {
+    flex: 1 1 200px;
+    background: var(--chip);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 12px;
+  }
+  .part-name { font-weight: 600; font-size: 0.8rem; display: block; margin-bottom: 2px; }
+  .part-desc { font-size: 0.72rem; color: var(--ink-soft); line-height: 1.5; }
+  .layer.external { border-color: var(--teal); }
+  .layer.store { background: var(--chip); }
+  .layer.store .part { background: var(--card); }
+  .layer.obs { border-style: dashed; }
+  .sys-arrow {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 4px 9px 26px;
+  }
+  .sys-arrow svg { width: 30px; height: 13px; color: var(--teal); transform: rotate(90deg); flex: none; }
+  .sys-arrow span { font-size: 0.72rem; color: var(--ink-soft); }
+  .sys-split { display: flex; gap: 10px; flex-wrap: wrap; }
+  .sys-split > .layer { flex: 1 1 260px; }
+
   /* ── legend (shared by both views) ── */
   .legend {
     display: flex;
@@ -326,6 +364,7 @@
     .connector-label { max-width: none; text-align: left; }
     .output { max-width: 100%; }
     .sum-row { flex-direction: column; gap: 5px; }
+    .sys-split > .layer { flex: none; width: 100%; }
     .sum-name { flex: none; }
   }
 </style>
@@ -335,12 +374,13 @@
   <header>
     <span class="eyebrow">AI VIDEO FACTORY</span>
     <h1>กระบวนการผลิตวิดีโอด้วย AI</h1>
-    <p class="subtitle">7 ขั้นตอนหลักของระบบ ตั้งแต่ค้นคว้าหัวข้อจนถึงไฟล์วิดีโอฉบับสมบูรณ์ — สลับดูภาพรวมหรือรายละเอียดกระบวนการย่อยในแต่ละขั้นได้จากปุ่มด้านล่าง</p>
+    <p class="subtitle">7 ขั้นตอนหลักของระบบ ตั้งแต่ค้นคว้าหัวข้อจนถึงไฟล์วิดีโอฉบับสมบูรณ์ — สลับดูภาพรวม รายละเอียดกระบวนการย่อย หรือสถาปัตยกรรมระบบได้จากปุ่มด้านล่าง</p>
   </header>
 
   <div class="tabs" role="tablist" aria-label="เลือกมุมมอง">
     <button class="tab-btn active" id="tab-overview" role="tab" aria-selected="true" aria-controls="view-overview">ภาพรวม</button>
     <button class="tab-btn" id="tab-detail" role="tab" aria-selected="false" aria-controls="view-detail">รายละเอียดแต่ละขั้น</button>
+    <button class="tab-btn" id="tab-system" role="tab" aria-selected="false" aria-controls="view-system">System design</button>
   </div>
 
   <div class="legend">
@@ -672,6 +712,67 @@
   </figure>
   </section>
 
+  <!-- LEVEL 3 : system design -->
+  <section id="view-system" role="tabpanel" aria-labelledby="tab-system" hidden>
+  <figure>
+    <div class="sys">
+      <div class="layer">
+        <div class="layer-head"><p class="layer-name">ผู้ใช้งาน (Client)</p><span class="layer-note">React 19 + TypeScript + Vite + Tailwind</span></div>
+        <div class="parts">
+          <div class="part"><span class="part-name">หน้าขั้นตอน 1–7</span><span class="part-desc">ทำงานตามไปป์ไลน์ ดูผลลัพธ์และแก้ไขรายช็อตได้ทันที</span></div>
+          <div class="part"><span class="part-name">หน้า Config</span><span class="part-desc">Brand / Menu · ตัวละคร · Director · Intro-End credit</span></div>
+          <div class="part"><span class="part-name">หน้ารายงาน</span><span class="part-desc">ประวัติ Run และรายงานค่าใช้จ่ายต่อขั้นตอน</span></div>
+        </div>
+      </div>
+      <div class="sys-arrow"><svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg><span>REST + SSE — สตรีมความคืบหน้าระหว่างประมวลผลแบบเรียลไทม์</span></div>
+      <div class="layer">
+        <div class="layer-head"><p class="layer-name">Backend — FastAPI (Python)</p><span class="layer-note">uvicorn · Pydantic · SQLAlchemy + Alembic</span></div>
+        <div class="parts">
+          <div class="part"><span class="part-name">REST / SSE API</span><span class="part-desc">รับคำสั่งแต่ละขั้นตอน สตรีมสถานะและผลลัพธ์กลับหน้าเว็บ</span></div>
+          <div class="part"><span class="part-name">LangGraph Orchestrator</span><span class="part-desc">คุมลำดับขั้นตอน 1–7 ส่งต่อผลลัพธ์ระหว่างขั้น และเรียกโมเดลตามบทบาท</span></div>
+          <div class="part"><span class="part-name">กฎอัตโนมัติ (Rule layer)</span><span class="part-desc">ตรวจและแก้ prompt ให้ตรงกฎก่อนส่งโมเดล เช่น ภาชนะ ฉาก ข้อความบนจอ</span></div>
+          <div class="part"><span class="part-name">Media Processing</span><span class="part-desc">ffmpeg · Pillow · Demucs · faster-whisper — ครอป ตัดต่อ รวมไฟล์ แยกเสียง จับจังหวะพูด</span></div>
+        </div>
+      </div>
+      <div class="sys-arrow"><svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg><span>อ่าน-เขียนข้อมูล · เก็บไฟล์สื่อ · เรียกโมเดล AI</span></div>
+      <div class="sys-split">
+      <div class="layer store">
+        <div class="layer-head"><p class="layer-name">PostgreSQL</p><span class="layer-note">23 ตาราง</span></div>
+        <div class="parts">
+          <div class="part"><span class="part-name">ข้อมูลงาน</span><span class="part-desc">Run · ผลวิจัย · บท · สตอรี่บอร์ด · ช็อต พร้อมประวัติเวอร์ชันย้อนกลับได้</span></div>
+          <div class="part"><span class="part-name">Config และค่าใช้จ่าย</span><span class="part-desc">Brand/Menu · ตัวละคร · Intro-End credit · บันทึกค่าใช้จ่ายรายครั้ง</span></div>
+        </div>
+      </div>
+      <div class="layer store">
+        <div class="layer-head"><p class="layer-name">AWS S3</p><span class="layer-note">boto3 · มี local fallback</span></div>
+        <div class="parts">
+          <div class="part"><span class="part-name">ไฟล์สื่อทั้งหมด</span><span class="part-desc">ภาพต้นแบบ · คลิปรายช็อต · ไฟล์วิดีโอฉบับสมบูรณ์ · ภาพอ้างอิง</span></div>
+          <div class="part"><span class="part-name">การเข้าถึง</span><span class="part-desc">หน้าเว็บโหลดไฟล์จาก S3 โดยตรง ส่วนการดาวน์โหลดผ่าน API เพื่อบังคับบันทึกลงเครื่อง</span></div>
+        </div>
+      </div>
+      </div>
+      <div class="sys-arrow"><svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg><span>เรียกผ่าน API ภายนอก (HTTPS)</span></div>
+      <div class="layer external">
+        <div class="layer-head"><p class="layer-name">บริการ AI ภายนอก</p><span class="layer-note">ตั้งค่าและสลับผู้ให้บริการได้จาก config</span></div>
+        <div class="parts">
+          <div class="part"><span class="part-name">Google Gemini / Vertex AI</span><span class="part-desc">Gemini 2.5 Flash (ข้อความ) · Gemini Omni Flash (วิดีโอ) · Veo 3.1 · Gemini Image · Gemini TTS</span></div>
+          <div class="part"><span class="part-name">OpenAI</span><span class="part-desc">gpt-image-2 — สร้างและแก้ไขภาพคีย์เฟรม</span></div>
+          <div class="part"><span class="part-name">Tavily</span><span class="part-desc">ค้นหาข้อมูลอ้างอิงบนเว็บสำหรับขั้นวิจัย</span></div>
+        </div>
+      </div>
+      <div class="sys-arrow"><svg viewBox="0 0 40 16" aria-hidden="true"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="2"/><polygon points="30,3 38,8 30,13" fill="currentColor"/></svg><span>ส่ง trace ทุกครั้งที่เรียกโมเดล</span></div>
+      <div class="layer obs">
+        <div class="layer-head"><p class="layer-name">Langfuse — Observability</p><span class="layer-note">ตรวจสอบย้อนหลังได้ทุก run</span></div>
+        <div class="parts">
+          <div class="part"><span class="part-name">ติดตามการทำงาน</span><span class="part-desc">บันทึก prompt ผลลัพธ์ เวลาที่ใช้ และ token ของทุกการเรียกโมเดล</span></div>
+          <div class="part"><span class="part-name">ควบคุมต้นทุน</span><span class="part-desc">สรุปค่าใช้จ่ายรายขั้นตอนและราย run เพื่อดูว่างบหมดไปกับอะไร</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption>สถาปัตยกรรมระดับสูงของระบบ — หน้าเว็บสั่งงานผ่าน API เดียว Backend คุมลำดับขั้นตอนด้วย LangGraph เก็บข้อมูลลง PostgreSQL เก็บไฟล์สื่อบน S3 และเรียกโมเดล AI ภายนอกตามบทบาทของแต่ละขั้น · ระบบทั้งหมดรันด้วย Docker Compose</figcaption>
+  </figure>
+  </section>
+
   <section class="summary" aria-labelledby="summary-h">
     <h2 id="summary-h">สรุป Model และ Tool ที่ใช้ในระบบ</h2>
     <p class="summary-intro">หมายเหตุ — ป้ายทึบคือโมเดลที่ระบบใช้งานอยู่จริงในปัจจุบัน ส่วนโมเดลอื่นตั้งค่าไว้ในระบบและสลับมาใช้แทนได้โดยไม่ต้องแก้โค้ด</p>
@@ -703,7 +804,7 @@
 </div>
 
 <script>
-  const views = [["tab-overview", "view-overview"], ["tab-detail", "view-detail"]];
+  const views = [["tab-overview", "view-overview"], ["tab-detail", "view-detail"], ["tab-system", "view-system"]];
   views.forEach(([btnId, viewId]) => {
     document.getElementById(btnId).addEventListener("click", () => {
       views.forEach(([b, v]) => {
