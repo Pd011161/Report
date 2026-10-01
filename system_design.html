@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ToDoList AI System Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f7f5; --surface: #ffffff; --text: #1d1d1b; --muted: #5f6368;
+  --border: #e2e2dc; --accent: #2f6f5e; --accent-soft: #e4f0ec; --warn: #9a5b00; --warn-soft: #fbf0dc;
+  --code-bg: #f0f0ec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161716; --surface: #1f201f; --text: #e8e8e4; --muted: #a0a39f;
+    --border: #333532; --accent: #7cc4ad; --accent-soft: #1f3530; --warn: #e6b45e; --warn-soft: #3a2f1a;
+    --code-bg: #2a2b29;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161716; --surface: #1f201f; --text: #e8e8e4; --muted: #a0a39f;
+  --border: #333532; --accent: #7cc4ad; --accent-soft: #1f3530; --warn: #e6b45e; --warn-soft: #3a2f1a;
+  --code-bg: #2a2b29;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.65 "IBM Plex Sans Thai", system-ui, sans-serif;
+}
+.wrap { max-width: 1040px; margin: 0 auto; padding: 32px 16px 80px; display: grid; grid-template-columns: 200px 1fr; gap: 32px; }
+nav { position: sticky; top: 24px; align-self: start; font-size: 13px; }
+nav a { display: block; color: var(--muted); text-decoration: none; padding: 3px 0; }
+nav a:hover { color: var(--accent); }
+main { min-width: 0; }
+h1 { font-size: 28px; margin: 0 0 4px; }
+h2 { font-size: 20px; margin: 48px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+h3 { font-size: 16px; margin: 24px 0 8px; }
+.sub { color: var(--muted); margin: 0 0 24px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin: 12px 0; }
+.mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; overflow-x: auto; text-align: center; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--surface); }
+.tbl { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; margin: 12px 0; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--accent-soft); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+code { font-family: "IBM Plex Mono", monospace; font-size: 13px; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); margin-right: 4px; }
+.note { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) {
+  .wrap { grid-template-columns: 1fr; padding-top: 20px; }
+  nav { position: static; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .grid2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <a href="#overview">1. ภาพรวม</a>
+  <a href="#context">2. System context</a>
+  <a href="#components">3. Components</a>
+  <a href="#chat">4. Chat workflow</a>
+  <a href="#state">5. Task state machine</a>
+  <a href="#seq">6. Sequence: สั่งงาน</a>
+  <a href="#speech">7. Speech pipeline</a>
+  <a href="#group">8. LINE group summary</a>
+  <a href="#data">9. Data stores</a>
+  <a href="#nfr">10. Non-functional</a>
+  <a href="#decisions">11. Design decisions</a>
+  <a href="#limits">12. ข้อจำกัด & แผน</a>
+</nav>
+<main>
+<h1>ToDoList AI — System Design</h1>
+<p class="sub">FastAPI AI service v0.3.0 · อัปเดต 2026-10-01 · ดูคู่กับ <code>architecture.md</code> และ <code>api_docs.md</code></p>
+
+<section id="overview">
+<h2>1. ภาพรวม</h2>
+<p>ToDoList AI เป็น service หลัง Backend ของระบบ ToDoList ทำหน้าที่ "สมอง" ภาษาธรรมชาติ:
+เข้าใจคำสั่งงานจากแชต LINE, ถอดเสียงประชุม, สรุปงานใน LINE group และปรับน้ำเสียงข้อความแจ้งเตือน
+<strong>ไม่เป็นเจ้าของข้อมูลงาน</strong> — Backend เป็นผู้บันทึกงานจริง service นี้คืน draft + สถานะให้ Backend ตัดสินใจ</p>
+<div class="grid2">
+  <div class="card"><span class="pill">sync</span><strong>/chat</strong><br>LLM agent + tools สร้าง/แก้/ค้นงาน, จัดการโปรเจกต์/ไฟล์</div>
+  <div class="card"><span class="pill">async</span><strong>/multi-channel</strong><br>VAD → ASR → task + MoM → callback</div>
+  <div class="card"><span class="pill">async</span><strong>/line-group-summary/runs</strong><br>batch สรุปงานจาก LINE group 3 รอบ/วัน</div>
+  <div class="card"><span class="pill">sync</span><strong>/api/message/persona</strong><br>rewrite ข้อความเป็นน้ำเสียงเลขา + guard</div>
+</div>
+</section>
+
+<section id="context">
+<h2>2. System context</h2>
+<pre class="mermaid">
+flowchart LR
+  U["ผู้ใช้<br/>LINE / Zoom / MS Teams"] --> BE["ToDoList Backend"]
+  SCH["External scheduler<br/>00:00 / 06:00 / 16:00"] --> AI
+  BE -- "Bearer CALLBACK_INTERNAL_TOKEN" --> AI["ToDoList AI<br/>(FastAPI)"]
+  AI -- "x-internal-token<br/>task query / project / file / ball / group APIs" --> BE
+  AI -- "callback x-internal-token" --> BE
+  AI --> VX["Vertex AI<br/>Gemini 3.1 flash-lite"]
+  AI --> STT["Google STT V2<br/>chirp_3"]
+  AI --> GCS["Google Cloud Storage"]
+  AI --> R[("Redis / Valkey")]
+  AI --> PG[("PostgreSQL")]
+  AI --> LF["Langfuse"]
+  AI -. "MEETING_INGEST_GATE" .-> HR["HR meeting ingest"]
+  SM["AWS Secrets Manager"] -. "env ตอน start" .-> AI
+</pre>
+</section>
+
+<section id="components">
+<h2>3. Components</h2>
+<pre class="mermaid">
+flowchart TB
+  subgraph HTTP["app/ (HTTP layer)"]
+    AUTH["auth.py<br/>require_api_auth"]
+    RC["routes/chat.py"]
+    RH["routes/chat_history.py"]
+    RM["routes/multi_channel.py"]
+    RG["routes/group_summary.py"]
+    RP["routes/persona.py"]
+  end
+  subgraph APP["src/todolist/application"]
+    CW["chat/workflow.py<br/>LangGraph"]
+    AG["chat/agent.py<br/>LineAgent"]
+    TL["chat/tools.py<br/>14 tools"]
+    UT["chat/utils/*<br/>task/project/personal/metadata/replies"]
+    CA["chat/api/*<br/>outbound adapters"]
+    SW["speech/workflow/multi_channel"]
+    GS["group_summary/runs.py + workflow.py"]
+    PS["persona.py"]
+  end
+  subgraph INFRA["infrastructure / integrations"]
+    HIS["history/redis_history.py"]
+    EMP["employees/postgres_people.py"]
+    LLM["llm/ LiteLLM Router"]
+    ASR["asr/ + vad/"]
+    OBS["observability/langfuse.py"]
+  end
+  RC --> CW --> AG --> TL --> UT
+  TL --> CA
+  TL --> EMP
+  CW --> HIS
+  RH --> HIS
+  RM --> SW --> ASR
+  SW --> EMP
+  RG --> GS
+  RP --> PS
+  AG --> LLM
+  SW --> LLM
+  GS --> LLM
+  PS --> LLM
+  CW --> OBS
+</pre>
+</section>
+
+<section id="chat">
+<h2>4. Chat workflow (LangGraph)</h2>
+<pre class="mermaid">
+flowchart LR
+  S((START)) --> H["get_history<br/>โหลด Redis + merge metadata<br/>#reset"]
+  H --> A["unified_agent<br/>LLM + tools<br/>(deterministic preempt)"]
+  A -- "มี tool_calls" --> T["unified_tools<br/>รัน tool + รวม usage<br/>inject actor"]
+  T --> A
+  A -- "จบ" --> F["finalize_response<br/>reply + public metadata"]
+  F --> SV["save_history<br/>Redis sliding TTL"]
+  SV --> E((END))
+</pre>
+<div class="tbl"><table>
+<tr><th>กลุ่ม tool</th><th>Tools</th></tr>
+<tr><td>งาน</td><td><code>create_task</code> <code>edit_tasks</code> <code>set_task_flow_status</code> <code>resolve_personal_task</code></td></tr>
+<tr><td>ค้นหา</td><td><code>query_tasks</code> <code>query_ball_history</code></td></tr>
+<tr><td>คน</td><td><code>get_detail_people</code> <code>get_detail_me</code> <code>get_employee_details_by_ids</code></td></tr>
+<tr><td>โปรเจกต์</td><td><code>get_project_name</code> <code>store_file</code> <code>file_rag_search</code> <code>project_status</code></td></tr>
+<tr><td>อื่น ๆ</td><td><code>get_current_time</code></td></tr>
+</table></div>
+<div class="note"><strong>หลักการ:</strong> LLM ตัดสิน intent และดึงข้อมูลจากภาษา — โค้ดคุมสถานะ (review readiness, permission, identity, confirm)
+tool error ทุกตัวถูกแปลงเป็น error payload ให้ model แก้ต่อได้ ไม่ทำให้ request ล้ม</div>
+</section>
+
+<section id="state">
+<h2>5. Task metadata state machine</h2>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> edit: ข้อมูลไม่ครบ
+  [*] --> person_resolution: ชื่อกำกวม
+  [*] --> project_resolution: ตั้งโปรเจกต์ใหม่
+  [*] --> personal_resolution: ไม่รู้ว่าใครทำ (flag)
+  person_resolution --> edit
+  person_resolution --> review
+  project_resolution --> review: ยืนยันโปรเจกต์
+  project_resolution --> edit
+  personal_resolution --> personal_confirm: งานตัวเอง (flag)
+  personal_resolution --> edit: มอบหมายคนอื่น
+  edit --> review: ครบ (deterministic)
+  review --> edit: แก้ไขเพิ่ม
+  review --> confirm: ข้อความยืนยัน (turn แยก)
+  edit --> cancel
+  review --> cancel
+  confirm --> [*]: Backend บันทึก
+  personal_confirm --> [*]: Backend บันทึก
+  cancel --> [*]
+</pre>
+<p><code>flow</code>: <code>voice</code> · <code>chat_task_create</code> · <code>chat_task_edit</code> · <code>chat_task_query</code> · <code>chat_project</code></p>
+</section>
+
+<section id="seq">
+<h2>6. Sequence: สั่งงานผ่าน LINE</h2>
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant L as LINE user
+  participant BE as Backend
+  participant AI as ToDoList AI
+  participant R as Redis
+  participant G as Gemini
+  participant PG as PostgreSQL
+  L->>BE: "สั่งงานอ๋อง ทำสไลด์ พรุ่งนี้ Project A"
+  BE->>AI: POST /chat {line_user_id, messages, metadata}
+  AI->>R: get_history
+  AI->>G: agent turn (tools)
+  G-->>AI: create_task(text)
+  AI->>G: task extraction
+  AI->>PG: resolve "อ๋อง" (BU/แผนก/level)
+  AI->>BE: project names (x-internal-token)
+  AI->>G: agent turn (compose)
+  AI->>R: save_history
+  AI-->>BE: reply + metadata{status: project_resolution}
+  BE-->>L: "งานที่ 1 อยู่ในโปรเจกต์ “Project A” ใช่ไหมคะ?"
+  L->>BE: "ใช่"
+  BE->>AI: POST /chat
+  AI-->>BE: metadata{status: review} + [ส่งเลย]
+  L->>BE: "ส่งเลย"
+  BE->>AI: POST /chat
+  Note over AI: preempt: review + ข้อความยืนยัน → set_task_flow_status(confirm)<br/>ตรวจโปรเจกต์/สิทธิ์ซ้ำ
+  AI-->>BE: metadata{status: confirm, payload.tasks}
+  BE->>BE: บันทึกงาน + แจ้งผู้รับ
+</pre>
+</section>
+
+<section id="speech">
+<h2>7. Speech multi-channel pipeline</h2>
+<pre class="mermaid">
+flowchart LR
+  REQ["POST /multi-channel<br/>202 Accepted"] --> Q{"lane"}
+  Q -- "source=line" --> L1["line semaphore"]
+  Q -- "zoom / ms / อื่น ๆ" --> L2["batch semaphore"]
+  L1 --> V
+  L2 --> V
+  V["process_vad<br/>VTT cue / Silero / 58s"] --> A["process_asr<br/>chunk → GCS → chirp_3"]
+  A --> M["merge_transcripts<br/>speaker tag + sort"]
+  M --> X["extract_tasks<br/>LLM + resolve คน"]
+  X --> S["extract_meeting_summary<br/>MoM"]
+  S --> C["callback<br/>SOURCE_CALLBACK_URL_SUCCESS"]
+  C --> I["ingest_meeting<br/>(gated)"]
+  I --> CL["cleanup tmp/"]
+  V & A & M & X & S & C -. "exception" .-> ERR["error callback<br/>SOURCE_CALLBACK_URL_ERROR"]
+</pre>
+</section>
+
+<section id="group">
+<h2>8. LINE group summary</h2>
+<pre class="mermaid">
+flowchart TB
+  SCH["scheduler 00/06/16 น."] --> P["POST /line-group-summary/runs"]
+  P --> RQ["Redis: progress queued<br/>202 + batch_id"]
+  RQ --> BG["background run_batch"]
+  BG --> GL["Backend: active groups<br/>(cursor pagination)"]
+  GL --> LOOP["ต่อ group (advisory lock)<br/>P3 เมื่อวาน → รอบที่ครบ"]
+  LOOP --> HIT{"มีผลใน PG?"}
+  HIT -- "ใช่ (และไม่ ignore_cache)" --> REUSE["reuse"]
+  HIT -- "ไม่" --> CHAT["Backend: group messages from/to"]
+  CHAT --> LLM["LLM สกัดงาน + สถานะ<br/>อ่านไฟล์แนบ GCS"]
+  LLM --> SAVE["PG ผลต่อรอบ + Redis daily state"]
+</pre>
+<div class="tbl"><table>
+<tr><th>รอบ</th><th>ช่วง (Bangkok)</th><th>เรียกตอน</th><th>หมายเหตุ</th></tr>
+<tr><td>P1</td><td>00:00–06:00</td><td>06:00</td><td>รวม P3 เมื่อวาน</td></tr>
+<tr><td>P2</td><td>06:00–16:00</td><td>16:00</td><td></td></tr>
+<tr><td>P3</td><td>16:00–24:00</td><td>00:00</td><td>ไม่แจ้ง, รวมเข้า P1</td></tr>
+</table></div>
+</section>
+
+<section id="data">
+<h2>9. Data stores</h2>
+<div class="tbl"><table>
+<tr><th>Store</th><th>Key / ตาราง</th><th>ข้อมูล</th><th>อายุ</th></tr>
+<tr><td>Redis</td><td><code>&lt;prefix&gt;:&lt;line_user_id&gt;</code> (LIST)</td><td>chat history envelope {message, metadata, usage} + private context</td><td>sliding <code>REDIS_TTL_SECONDS</code>, ≤ <code>REDIS_HISTORY_TURNS</code>×2</td></tr>
+<tr><td>Redis</td><td><code>…:group_summary_run:&lt;batch_id&gt;</code></td><td>progress batch</td><td>7 วัน</td></tr>
+<tr><td>Redis</td><td><code>…:group_summary:&lt;group&gt;:&lt;date&gt;</code></td><td>daily state ของ group</td><td>รายวัน</td></tr>
+<tr><td>PostgreSQL</td><td><code>employees</code>, <code>employee_organization_positions</code>, <code>organization_positions</code></td><td>ข้อมูลพนักงาน (อ่านอย่างเดียว)</td><td>—</td></tr>
+<tr><td>PostgreSQL</td><td>group summary result / token ledger</td><td>ผลสรุปต่อรอบ + token</td><td>ถาวร</td></tr>
+<tr><td>GCS</td><td><code>gs://…</code>, <code>vad_chunks/</code></td><td>ไฟล์เสียง/แนบ, chunk ASR</td><td>—</td></tr>
+<tr><td>Local disk</td><td><code>tmp/&lt;job_id&gt;</code></td><td>ไฟล์ดาวน์โหลดชั่วคราว</td><td>ลบที่ <code>cleanup</code></td></tr>
+</table></div>
+</section>
+
+<section id="nfr">
+<h2>10. Non-functional</h2>
+<div class="tbl"><table>
+<tr><th>ด้าน</th><th>วิธีที่ใช้</th></tr>
+<tr><td>Security</td><td>Bearer token inbound (<code>compare_digest</code>, 401/403), <code>x-internal-token</code> outbound, secrets จาก AWS Secrets Manager, actor inject จาก state (model ปลอม id ไม่ได้), จำกัดการมอบหมายตาม BU/แผนก/level, tool result ดิบเป็น private</td></tr>
+<tr><td>Reliability</td><td>Backend API timeout 3s + retry 1 (transient), LLM router retry 2, STT retry 429/503 สูงสุด 10 ครั้ง, edit model retry 1 ครั้งเมื่อ output ไม่ผ่าน, persona fallback เป็นข้อความเดิม, group summary ใช้ผลเก่าซ้ำ + per-group isolation</td></tr>
+<tr><td>Correctness</td><td>Pydantic schema ทุก boundary, protected fields + masking task_code, deterministic status, confirm เฉพาะจาก review</td></tr>
+<tr><td>Scalability</td><td>/chat stateless (state อยู่ Redis) scale แนวนอนได้; speech/group summary เป็น in-process background (จำกัดด้วย semaphore/lock)</td></tr>
+<tr><td>Memory</td><td>ดาวน์โหลดเสียงทีละไฟล์ (ออกแบบสำหรับ container ~512MB), ลบ tmp หลังจบ</td></tr>
+<tr><td>Observability</td><td>Langfuse trace ต่อ request/job, usage+cost ใน response, log ต่อ job_id/batch_id</td></tr>
+<tr><td>Compatibility</td><td>ChatTask เก็บ field ที่ไม่รู้จัก, รับ payload legacy (project_name, assignee string, status ตัวเล็ก), flag ปิด = payload เดิม byte-identical</td></tr>
+</table></div>
+</section>
+
+<section id="decisions">
+<h2>11. Design decisions</h2>
+<div class="tbl"><table>
+<tr><th>การตัดสินใจ</th><th>เหตุผล</th><th>Trade-off</th></tr>
+<tr><td>Unified agent เดียว (ไม่มี router model)</td><td>ลด latency/cost, context เดียวต่อ turn</td><td>prompt ใหญ่, ต้องมี probe วัด routing</td></tr>
+<tr><td>Metadata เดินทางไปกลับกับ Backend + Redis</td><td>Backend เห็นสถานะ draft และเป็นเจ้าของการบันทึก</td><td>ต้องรักษา contract อย่างเคร่งครัด</td></tr>
+<tr><td>Deterministic status หลัง LLM</td><td>กัน model ยืนยัน/ส่งงานเอง</td><td>โค้ด validation เยอะ</td></tr>
+<tr><td>ถามยืนยันโปรเจกต์ทุกครั้ง</td><td>กันแนบโปรเจกต์ผิดเงียบ ๆ</td><td>เพิ่ม 1 turn</td></tr>
+<tr><td>2 lanes สำหรับ speech</td><td>LINE voice ไม่ต้องรอประชุมยาว</td><td>ยังไม่ durable</td></tr>
+<tr><td>Feature flag ทุก behavior ที่ต้องรอ Backend</td><td>deploy ได้ก่อน Backend พร้อม</td><td>ต้องทดสอบทั้ง flag on/off</td></tr>
+<tr><td>Persona guard แบบ token presence</td><td>ไม่ส่งข้อความที่ fact ผิด</td><td>fallback ~10%, ชื่อคนป้องกันด้วย prompt เท่านั้น</td></tr>
+</table></div>
+</section>
+
+<section id="limits">
+<h2>12. ข้อจำกัด & แผน</h2>
+<ul>
+  <li><strong>Background job ไม่ durable</strong> — <code>/multi-channel</code> และ group summary อยู่ในคิว in-process; container restart = หาย → แผน: durable queue (เช่น SQS) แยกตาม SLO</li>
+  <li><code>/line</code>, <code>/zoom</code> เป็น stub</li>
+  <li>Persona fallback ยังสูงกว่าเป้า 10%</li>
+  <li>Backend ต้องพร้อมก่อนเปิด <code>PERSONAL_TASK_ENABLED</code> / <code>TASK_TYPE_BY_PROJECT_ENABLED</code></li>
+  <li>Group summary ไม่มี grace period ที่ขอบรอบ, ประมวลผล group ทีละตัว</li>
+  <li>แผน: §4.7 ปรับคำสั่งเชิงลบเป็นภาษาทางการ (<code>tone_adjusted</code>)</li>
+</ul>
+</section>
+</main>
+</div>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+const dark = matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light";
+mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "strict", fontFamily: "IBM Plex Sans Thai, sans-serif" });
+</script>
+</body>
+</html>
