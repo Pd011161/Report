@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ToDoList Component Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: tabs per service; each tab = an ELK layered diagram (lanes left→right as bands, orthogonal wires always drawn) + a detail panel for the selected box */
+:root{
+  --bg:#f5f4ef; --fg:#1d1f24; --muted:#5d6271; --line:#d6d2c6; --card:#ffffff; --lane:#ebe9e1; --lane-fg:#6d6a60;
+  --accent:#2f5fb3; --accent-soft:#e3eaf7; --hl:#2f5fb3; --hl-in:#b4551c; --wire:#8d8a80;
+  --ai:#2a7a4b; --be:#2f5fb3; --hook:#b4551c; --fe:#7a4b9b; --store:#6b6457; --ext:#6b6b6b;
+  --warn-bg:#fff4e0; --warn-fg:#7a4a00; --bad-bg:#fde8e8; --bad-fg:#8a1c1c;
+  --sans:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141619; --fg:#e8e6df; --muted:#a3a7b1; --line:#3a3d45; --card:#1e2127; --lane:#1a1d22; --lane-fg:#9c9a92;
+  --accent:#7ea0e8; --accent-soft:#1c2740; --hl:#8fb0f0; --hl-in:#e5884a; --wire:#6d6f76;
+  --ai:#6cc08a; --be:#7ea0e8; --hook:#e5884a; --fe:#b98ad8; --store:#b8ad99; --ext:#9a9a9a;
+  --warn-bg:#3a2a0a; --warn-fg:#f3c56b; --bad-bg:#3d1717; --bad-fg:#f3a5a5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141619; --fg:#e8e6df; --muted:#a3a7b1; --line:#3a3d45; --card:#1e2127; --lane:#1a1d22; --lane-fg:#9c9a92;
+  --accent:#7ea0e8; --accent-soft:#1c2740; --hl:#8fb0f0; --hl-in:#e5884a; --wire:#6d6f76;
+  --ai:#6cc08a; --be:#7ea0e8; --hook:#e5884a; --fe:#b98ad8; --store:#b8ad99; --ext:#9a9a9a;
+  --warn-bg:#3a2a0a; --warn-fg:#f3c56b; --bad-bg:#3d1717; --bad-fg:#f3a5a5; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+main{max-width:1800px;margin:0 auto}
+header{padding:28px 0 12px}
+h1{font-size:clamp(24px,3.4vw,32px);margin:0 0 6px;line-height:1.2;text-wrap:balance}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lead{color:var(--muted);max-width:110ch;margin:0;font-size:14px}
+code{font-family:var(--mono);font-size:.84em}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 0;border-bottom:1px solid var(--line)}
+.tab{font:inherit;font-weight:600;font-size:14px;padding:8px 14px;border:1px solid transparent;border-bottom:0;border-radius:6px 6px 0 0;background:none;color:var(--muted);cursor:pointer;margin-bottom:-1px}
+.tab[aria-selected="true"]{background:var(--card);color:var(--fg);border-color:var(--line)}
+.tab .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+button:focus-visible,.node:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--muted);padding:10px 0}
+.bar .grow{flex:1}
+.btn{font:inherit;font-size:13px;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.chk{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.panel{display:none}.panel.on{display:block}
+.svcsum{font-size:13px;color:var(--muted);margin:0 0 8px;max-width:150ch}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+.stage{position:relative;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg);height:min(78vh,1100px)}
+.sizer{position:relative}
+.canvas{position:absolute;left:0;top:0;transform-origin:0 0}
+.canvas svg{position:absolute;left:0;top:0;overflow:visible}
+.band{fill:var(--lane);stroke:var(--line)}
+.bandlabel{fill:var(--lane-fg);font:700 12px var(--sans);letter-spacing:.06em;text-transform:uppercase}
+.bandsub{fill:var(--lane-fg);font:400 11px var(--sans)}
+.wire{fill:none;stroke:var(--wire);stroke-width:1.1;opacity:.75}
+.wire.hide{display:none}
+.focus .wire{opacity:.12}
+.focus .wire.out{stroke:var(--hl);stroke-width:2;opacity:1}
+.focus .wire.in{stroke:var(--hl-in);stroke-width:2;opacity:1}
+.node{position:absolute;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--c,var(--line));border-radius:6px;padding:6px 9px;cursor:pointer;font-size:12px;overflow:hidden;transition:opacity .12s,box-shadow .12s}
+.node.db{border-radius:6px 6px 14px 14px}
+.node h4{margin:0;font-size:13px;line-height:1.25;display:flex;gap:6px;align-items:baseline}
+.node h4 span.t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node .size{font-size:10.5px;color:var(--muted);font-weight:500;margin-left:auto;white-space:nowrap}
+.node .path{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .one{margin-top:3px;color:var(--fg);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.node .one code{font-size:10.5px}
+.node .tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.tag{font-size:10px;font-weight:600;padding:0 6px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.warn{background:var(--warn-bg);color:var(--warn-fg);border-color:transparent}
+.tag.bad{background:var(--bad-bg);color:var(--bad-fg);border-color:transparent}
+.focus .node{opacity:.3}
+.focus .node.lit{opacity:1}
+.focus .node.sel{opacity:1;box-shadow:0 0 0 2px var(--hl)}
+.detail{position:sticky;top:10px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;font-size:13px;max-height:min(78vh,1100px);overflow:auto}
+.detail h3{margin:0 0 2px;font-size:16px}
+.detail .path{font-family:var(--mono);font-size:11.5px;color:var(--muted);word-break:break-all}
+.detail ul{margin:8px 0;padding-left:18px}
+.detail li{margin:3px 0}
+.detail h5{margin:12px 0 4px;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.detail .links{display:flex;flex-wrap:wrap;gap:4px}
+.detail .links button{font:inherit;font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.detail .links button.in{border-color:var(--hl-in)}
+.detail .links button.out{border-color:var(--hl)}
+.detail .empty{color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin:10px 0 0}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--k)}
+.legend .w::before{height:2px;width:18px;vertical-align:3px}
+.notes{margin-top:16px;font-size:13.5px}
+.notes h3{font-size:15px;margin:0 0 6px}
+.notes ul{margin:0;padding-left:18px}
+.notes li{margin:3px 0;max-width:130ch}
+.msg{padding:24px;color:var(--muted)}
+.band.data{fill:var(--card)}
+.grouplabel{fill:var(--fg);font:600 13px var(--sans)}
+.node.feat{box-shadow:inset 0 0 0 1px var(--c)}
+.node.cyl{border:1px solid var(--store);border-radius:50% / 12px;padding:24px 12px 10px;text-align:center}
+.node.cyl::before{content:"";position:absolute;left:-1px;right:-1px;top:-1px;height:18px;border:1px solid var(--store);border-radius:50%;pointer-events:none}
+.node.cyl h4{justify-content:center}
+.node.cyl .one{text-align:center}
+.stage[data-busy] .canvas{visibility:hidden}
+.stage[data-busy]::after{content:attr(data-busy);position:sticky;left:16px;top:16px;display:inline-block;margin:16px;padding:6px 12px;border-radius:999px;background:var(--accent-soft);color:var(--fg);font-size:13px}
+@media (max-width:1100px){.work{grid-template-columns:1fr}.detail{position:static;max-height:none}.stage{height:70vh}}
+@media (prefers-reduced-motion:reduce){.node{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="eyebrow">ToDoList · component map ทั้งระบบ + ราย service</div>
+  <h1>ส่วนประกอบของระบบ: อะไรอยู่ตรงไหน ต่อกับอะไร</h1>
+  <p class="lead">แต่ละ tab คือ diagram ของ 1 service วาดอัตโนมัติ (ELK layered, เส้นหักมุม, จัดลำดับให้เส้นตัดกันน้อยที่สุด) เรียงชั้นซ้ายไปขวา: ทางเข้า → ส่วนหลัก → ส่วนกลาง → ที่เก็บ/ภายนอก ลูกศรชี้จากผู้เรียกไปยังสิ่งที่ถูกเรียก กล่องบอกชื่อ, path, ขนาด และหน้าที่ย่อ กดกล่องเพื่อดูรายละเอียดเต็มที่แผงขวาและไฮไลต์เส้นของกล่องนั้น ฐานโค้ด: AI <code>PrepDeployTest cd8859a</code> · Backend <code>test/fix-tsc-errors 933bf5c</code> · Webhook <code>feat/notification-config-wiring edca834</code> · Frontend <code>fix/frontend-type-errors 6896ea4</code></p>
+</header>
+
+<div class="tabs" role="tablist" id="tabs"></div>
+<div class="bar">
+  <button class="btn" id="zout" aria-label="ย่อ">−</button><button class="btn" id="zin" aria-label="ขยาย">+</button><button class="btn" id="zfit">พอดีจอ</button><button class="btn" id="z100">100%</button>
+  <span id="zval"></span>
+  <label class="chk" id="commonwrap" hidden><input type="checkbox" id="common" checked> ซ่อนเส้นไปไฟล์ที่ใช้ทั่ว (<span id="commonlist"></span>)</label>
+  <label class="chk" id="intrawrap" hidden><input type="checkbox" id="intra" checked> ซ่อนเส้น <span id="intralist"></span> ที่ import กันเอง</label>
+  <span class="grow"></span><span id="selinfo">กดกล่องเพื่อดูรายละเอียดและไฮไลต์เส้นของกล่องนั้น · Esc ยกเลิก</span>
+</div>
+<div id="panels"></div>
+<div class="legend">
+  <span style="--k:var(--ai)">AI</span><span style="--k:var(--be)">Backend</span><span style="--k:var(--hook)">Webhook</span><span style="--k:var(--fe)">Frontend</span><span style="--k:var(--store)">ที่เก็บข้อมูล</span><span style="--k:var(--ext)">ระบบภายนอก</span>
+  <span class="w" style="--k:var(--wire)">เรียก/ใช้ (ลูกศรชี้ไปที่ถูกเรียก)</span><span class="w" style="--k:var(--hl)">กล่องที่เลือกเรียกออก</span><span class="w" style="--k:var(--hl-in)">เรียกเข้ามาที่กล่องที่เลือก</span>
+  <span style="--k:var(--warn-fg)">ป้ายเหลือง = flag ปิด / ไม่แน่ใจ</span><span style="--k:var(--bad-fg)">ป้ายแดง = legacy / ไม่มี guard</span>
+</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+
+<script>
+/* Data: one entry per service. lanes[].cards[]: id, t (title), p (path), s (size), c (color var), i (items), to (ids this card calls/uses), tags [[text, kind]] */
+var SVC = [
+{ key:"sys", name:"ภาพรวมทั้งระบบ", color:"--accent",
+  sum:"ทุกส่วนของระบบในภาพเดียว: กรอบละ 1 ส่วน (ผู้เรียกจากภายนอก · Frontend · Webhook · Backend · AI · PostgreSQL · Redis · GCS · บริการภายนอก) กล่องข้างในคือองค์ประกอบหลักของส่วนนั้น เส้นคือการเรียกข้ามระบบ และการอ่าน/เขียนตาราง คิว และ prefix · PostgreSQL เป็น instance เดียว schema ของ Backend แต่ Webhook และ AI อ่าน/เขียนตรงบางตาราง · Redis แยกด้วย key prefix ต่อ service (ใช้ instance เดียวกันหรือไม่ขึ้นกับ config แต่ละ env) · รายละเอียดราย service ดูที่ tab แบบกลุ่มของแต่ละ service",
+  groups:[
+   {id:"CALLER", t:"ผู้เรียกจากภายนอก", w:190, nodes:[
+     {id:"C_line", t:"LINE Platform", c:"--ext", i:["ผู้ใช้แชต 1:1, กลุ่ม, ไฟล์, เสียง, ปุ่ม Flex"]},
+     {id:"C_web", t:"Browser", c:"--ext", i:["admin, ผู้บริหาร, ผู้ใช้ทั่วไป"]},
+     {id:"C_prov", t:"Zoom · MS Graph", c:"--ext", i:["webhook เมื่อประชุมจบ / มี transcript"]}]},
+   {id:"FE", t:"Frontend · Nuxt 4 SPA", w:210, c:"--fe", nodes:[
+     {id:"F_pages", t:"pages + components", s:"22 หน้า", p:"app/pages/, app/components/", i:["overview, projects, workstream, inbox, people, meetings, performance, users, token, audit, notifications"]},
+     {id:"F_api", t:"app/backend/ client", p:"client.ts + *-api.ts", i:["Bearer JWT ไป /api/v1 · ไม่เรียก AI"]}]},
+   {id:"HOOK", t:"Webhook · NestJS (todo-list-webhook)", w:220, c:"--hook", nodes:[
+     {id:"H_entry", t:"LINE entry", p:"modules/line/line.service", i:["/webhook/line: ตรวจลายเซ็น, ตอบ 200, แยก event, resolve user"]},
+     {id:"H_proc", t:"processing queues", p:"modules/line/processing/", i:["inbound, debounce, image-set, ai-dispatch, usage, delivery"]},
+     {id:"H_chat", t:"chat + ผล AI", p:"modules/line/chat/", i:["เรียก AI /chat ตรง (flag, ปุ่ม review), รับผลจาก Backend"]},
+     {id:"H_media", t:"ไฟล์ · เสียง · รูป", p:"modules/line/{voice,image,document,media}/", i:["ดาวน์โหลดจาก LINE → ส่ง bytes ให้ Backend"]},
+     {id:"H_notify", t:"render แจ้งเตือน", p:"modules/line/task/, jobs/, notifications/", i:["daily summary, deadline, overdue, task-command, review Flex, job %"]},
+     {id:"H_reg", t:"ลงทะเบียน + admin", p:"modules/registration/, employee/, invite/", i:["OTP, consent, คำสั่ง admin"]},
+     {id:"H_client", t:"LINE client", p:"line-client.service.ts", i:["reply, push, loading, content · ถือ channel token รายเดียว"]}]},
+   {id:"BE", t:"Backend · NestJS + Prisma (todo-list-api)", w:220, c:"--be", nodes:[
+     {id:"B_input", t:"LINE input orchestrator", p:"src/line-input/, voice/", i:["/api/line/inputs (202), debounce, แปลงไฟล์, dispatch ไป AI, ส่งผลกลับ Hook"]},
+     {id:"B_aigw", t:"AI gateway", p:"src/ai-gateway/", i:["client ไป AI (Bearer), cost, rate limit, usage"]},
+     {id:"B_task", t:"งาน + review", p:"src/task/, task-review/, chat/", i:["/tasks/ai/* create/update, sessions, inbox, auto-approve, evidence"]},
+     {id:"B_meet", t:"ประชุม + ปฏิทิน", p:"src/zoom-webhook/, microsoft-teams/, google-calendar/, common/meeting/", i:["ดึง recording, /calendar/*, callback ประชุม, MoM"]},
+     {id:"B_ocr", t:"OCR + file RAG", p:"src/ocr/", i:["store_file, file_rag_search, Gemini OCR, embedding"]},
+     {id:"B_group", t:"สรุป LINE group", p:"src/line-group/", i:["cron 3 รอบ/วัน → AI, poll run logs, review"]},
+     {id:"B_notify", t:"notification engine", p:"src/common/notification-*/", i:["master config, scheduler ต่อ BU, delivery policy → Hook"]},
+     {id:"B_jobs", t:"jobs · slides · short links", p:"src/ai-jobs/, slides/, short-links/", i:["job events → Hook push, metadata สไลด์, /s/:token"]},
+     {id:"B_id", t:"ตัวตน + สิทธิ์ + auth", p:"src/employee/, registration/, otp/, consent/, auth/, common/permissions/", i:["employee API ให้ Hook, OTP, login, permission roles, authorization API"]},
+     {id:"B_dash", t:"dashboard API", s:"76 ไฟล์", p:"src/dashboard/", i:["/api/v1/dashboard/* ทุกหน้าของเว็บ"]},
+     {id:"B_cron", t:"cron 11 ตัว", i:["group summary, review expiry, OCR sweep, users sync, retention, scheduler"]}]},
+   {id:"AI", t:"AI · FastAPI + LangGraph (todo-list-ai)", w:220, c:"--ai", nodes:[
+     {id:"A_chat", t:"/chat agent", s:"21.8k", p:"features/chat/", i:["LangGraph unified agent, 40 tools, บันทึกงานตอน confirm (flag)"]},
+     {id:"A_speech", t:"/multi-channel", p:"features/speech/", i:["VAD → ASR → สกัดงาน → สรุปประชุม → callback"]},
+     {id:"A_group", t:"group summary", p:"features/group_summary/", i:["batch สรุปกลุ่มตามรอบ"]},
+     {id:"A_persona", t:"persona", p:"features/persona/", i:["rewrite ข้อความเป็นน้องลิสท์"]},
+     {id:"A_search", t:"คน + ค้นงาน/โปรเจกต์", p:"features/employees/, task_search/, project_search/", i:["ขอบเขตมอบงาน, ผังองค์กร, pg_trgm + vector"]},
+     {id:"A_state", t:"history · jobs · bot_config · meeting", p:"features/{history,jobs,bot_config,meeting}/", i:["state ใน Redis, job %, สิทธิ์ของ turn, journal การนัด"]},
+     {id:"A_clients", t:"backend/ clients", p:"src/todolist/backend/", i:["tasks/ai, calendar, ocr, line/projects, line-groups, slides, job events, callbacks"]},
+     {id:"A_llm", t:"llm/ + kernel", p:"src/todolist/{llm,db,storage,core,config}/", i:["LiteLLM router, Langfuse, DB engine, GCS"]}]},
+   {id:"PG", t:"PostgreSQL ai_skr · 90 ตาราง", w:250, data:true, nodes:[
+     {id:"T_org", t:"องค์กร + ตัวตน + สิทธิ์", cyl:true, p:"23 ตาราง · Backend เขียน, AI อ่าน", i:["employees, departments, positions, consent, auth, permission_roles*, employee_permission"]},
+     {id:"T_task", t:"งาน + review", cyl:true, p:"15 ตาราง · Backend เขียน, AI อ่าน", i:["tasks (+embedding), assignments, events, sources, evidence, task_review_sessions, line_chat_task_sessions, inbox"]},
+     {id:"T_line", t:"LINE input + message log", cyl:true, p:"5 ตาราง · Backend + Webhook เขียน", i:["line_input_batches*, line_voice_*, message_logs (Webhook)"]},
+     {id:"T_group", t:"LINE group", cyl:true, p:"6 ตาราง · 3 service เขียน", i:["line_groups, line_group_message_logs (Webhook) · summary batches (Backend) · ai_line_group_run_logs (AI)"]},
+     {id:"T_proj", t:"โปรเจกต์", cyl:true, p:"3 ตาราง · Backend เขียน, AI อ่าน", i:["projects, project_members, project_departments"]},
+     {id:"T_meet", t:"ประชุม + ปฏิทิน", cyl:true, p:"13 ตาราง", i:["meetings, occurrences, participants, artifacts, transcript_segments, meeting_documents, calendar_*"]},
+     {id:"T_ocr", t:"OCR", cyl:true, p:"2 ตาราง", i:["ocr_documents, ocr_document_chunks"]},
+     {id:"T_usage", t:"AI usage + quota", cyl:true, p:"10 ตาราง", i:["ai_jobs, ai_usage_logs, voice_usage_logs, token_quota_*"]},
+     {id:"T_notify", t:"แจ้งเตือน", cyl:true, p:"3 ตาราง", i:["notification_master_configs, revisions, deliveries"]},
+     {id:"T_misc", t:"สไลด์ · ลิงก์ · รายงาน · log", cyl:true, p:"10 ตาราง", i:["slide_generations, short_links, performance_*, report_exports, api_*_logs, audit"]}]},
+   {id:"RD", t:"Redis · แยกด้วย key prefix", w:240, data:true, nodes:[
+     {id:"R_hook", t:"Webhook · Bull 6 คิว", cyl:true, p:"line-hook-*", i:["inbound, conversation-batch, image-set, ai-dispatch, ai-usage, delivery"]},
+     {id:"R_be", t:"Backend · Bull 14 คิว", cyl:true, p:"prefix bull", i:["line-candidate-batch, line-ai-dispatch, line-audio-routing, line-document-process, line-media-ready-callback, line-input-result-callback, line-voice-ai, ocr-process, task-review-expiry, ai-job-events, task-description-embedding, project-embedding, zoom-recording, microsoft-teams-ingest"]},
+     {id:"R_ai", t:"AI · state", cyl:true, p:"REDIS_KEY_PREFIX", i:["{p}:{line_user_id} ประวัติแชต, job:*, bot_config:*, meeting:*:operation:*, group_summary:*"]}]},
+   {id:"GCSB", t:"GCS · bucket เดียว (GCS_BUCKET_NAME)", w:240, data:true, nodes:[
+     {id:"G_line", t:"line-inputs/ · voice-messages/ · line-groups/", cyl:true, p:"Backend เขียน, AI อ่าน", i:["ไฟล์ รูป เสียง จาก LINE (Webhook ไม่เขียนเอง)"]},
+     {id:"G_meet", t:"meetings/", cyl:true, p:"Backend เขียน, AI อ่าน", i:["{BU}/zoom|ms/{occ}/ audio · transcript · MoM"]},
+     {id:"G_ocr", t:"ocr-inputs/", cyl:true, p:"Backend", i:["ไฟล์ที่ส่ง OCR"]},
+     {id:"G_dash", t:"dashboard/", cyl:true, p:"Backend", i:["{BU}/imports · organization-imports · reports"]},
+     {id:"G_ai", t:"slides/ · ASR chunk", cyl:true, p:"AI เขียน", i:["slides/*.pptx + signed URL, chunk เสียงชั่วคราว"]}]},
+   {id:"EXT", t:"บริการภายนอก", w:200, nodes:[
+     {id:"X_lineapi", t:"LINE Messaging API", c:"--ext", i:["reply, push, content"]},
+     {id:"X_linelogin", t:"LINE Login", c:"--ext", i:["web login, profile"]},
+     {id:"X_vertex", t:"Vertex Gemini", c:"--ext", i:["AI: ทุก LLM step · Backend: OCR"]},
+     {id:"X_stt", t:"Google STT v2", c:"--ext", i:["chirp_3"]},
+     {id:"X_di", t:"DeepInfra bge-m3", c:"--ext", i:["Backend เขียน embedding, AI ฝัง query"]},
+     {id:"X_lf", t:"Langfuse", c:"--ext", i:["trace + usage ของ AI"]},
+     {id:"X_gcal", t:"Google Calendar", c:"--ext", i:["นัดประชุม"]},
+     {id:"X_zoom", t:"Zoom API · MS Graph", c:"--ext", i:["ดึง recording / transcript, users sync"]},
+     {id:"X_sms", t:"ThaiBulkSMS", c:"--ext", i:["OTP"]},
+     {id:"X_hr", t:"HR meeting ingest", c:"--ext", i:["AI ส่งสรุปประชุม"]},
+     {id:"X_aws", t:"AWS Secrets Manager", c:"--ext", i:["secret ของทั้ง 3 service"]}]}
+  ],
+  edges:[
+   ["C_line","H_entry"],["C_web","F_pages"],["C_prov","B_meet"],["F_pages","F_api"],["F_api","B_dash"],["F_api","B_id"],["F_api","X_linelogin"],
+   ["H_entry","H_proc"],["H_entry","H_reg"],["H_entry","H_media"],["H_entry","T_line"],["H_entry","T_group"],["H_proc","R_hook"],["H_proc","H_chat"],["H_proc","H_client"],
+   ["H_chat","A_chat"],["H_chat","H_client"],["H_chat","B_input"],["H_media","B_input"],["H_reg","B_id"],["H_notify","H_client"],["H_client","X_lineapi"],
+   ["B_input","R_be"],["B_input","B_aigw"],["B_input","G_line"],["B_input","T_line"],["B_input","H_chat"],
+   ["B_aigw","A_chat"],["B_aigw","A_speech"],["B_aigw","A_group"],["B_aigw","A_persona"],["B_aigw","T_usage"],
+   ["B_task","T_task"],["B_task","R_be"],["B_task","B_notify"],["B_task","X_di"],
+   ["B_meet","T_meet"],["B_meet","G_meet"],["B_meet","R_be"],["B_meet","B_aigw"],["B_meet","B_task"],["B_meet","X_gcal"],["B_meet","X_zoom"],
+   ["B_ocr","T_ocr"],["B_ocr","G_ocr"],["B_ocr","R_be"],["B_ocr","X_vertex"],["B_ocr","X_di"],
+   ["B_group","T_group"],["B_group","B_aigw"],["B_group","B_task"],
+   ["B_notify","T_notify"],["B_notify","H_notify"],
+   ["B_jobs","R_be"],["B_jobs","T_usage"],["B_jobs","T_misc"],["B_jobs","H_notify"],
+   ["B_id","T_org"],["B_id","X_sms"],["B_id","X_linelogin"],
+   ["B_dash","T_org"],["B_dash","T_task"],["B_dash","T_proj"],["B_dash","T_meet"],["B_dash","T_usage"],["B_dash","T_notify"],["B_dash","T_misc"],["B_dash","G_dash"],
+   ["B_cron","B_group"],["B_cron","B_task"],["B_cron","B_notify"],["B_cron","B_meet"],["B_cron","B_ocr"],
+   ["A_chat","A_search"],["A_chat","A_state"],["A_chat","A_clients"],["A_chat","A_llm"],["A_chat","T_task"],["A_chat","G_ai"],
+   ["A_speech","A_llm"],["A_speech","A_clients"],["A_speech","X_stt"],["A_speech","G_line"],["A_speech","G_meet"],["A_speech","G_ai"],["A_speech","X_hr"],
+   ["A_group","A_llm"],["A_group","A_clients"],["A_group","A_state"],["A_group","T_group"],
+   ["A_persona","A_llm"],
+   ["A_search","T_org"],["A_search","T_task"],["A_search","T_proj"],["A_search","X_di"],
+   ["A_state","R_ai"],["A_state","A_clients"],
+   ["A_clients","B_task"],["A_clients","B_meet"],["A_clients","B_ocr"],["A_clients","B_jobs"],["A_clients","B_group"],
+   ["A_llm","X_vertex"],["A_llm","X_lf"],
+   ["HOOK","X_aws"],["BE","X_aws"],["AI","X_aws"]
+  ],
+  lanes:[] },
+{ key:"ai", name:"AI · todo-list-ai", color:"--ai",
+  sum:"FastAPI + LangGraph · package src/todolist · ทุก route ต้อง Bearer (CALLBACK_INTERNAL_TOKEN) ยกเว้น /health, /, /console · กฎ import บังคับด้วย tests/test_architecture.py: kernel ไม่ import feature, backend/ import ได้แค่ chat/meeting schemas, feature ข้ามกันเฉพาะคู่ที่ประกาศและแตะได้แค่ service/schemas/prompt",
+  lanes:[
+  { h:"ทางเข้า", sub:"main.py + features/*/routes.py", cards:[
+    {id:"r_chat", t:"POST /chat", p:"features/chat/routes.py", i:["ผู้เรียก: Hook (direct / ปุ่ม review), Backend line-ai-dispatch","ตอบ sync: reply + metadata"], to:["chat"]},
+    {id:"r_hist", t:"POST /chat/history", p:"features/history/routes.py", i:["Backend เขียนข้อความที่ส่งถึงผู้ใช้ลงประวัติ"], to:["history"]},
+    {id:"r_mc", t:"POST /multi-channel", p:"speech/routes/multi_channel.py", i:["Backend: Zoom/Teams/เสียง LINE ยาว","202 + BackgroundTasks, 2 lane"], to:["speech"]},
+    {id:"r_stub", t:"POST /line · /zoom", p:"speech/routes/line.py, zoom.py", i:["stub ตอบ ok"], to:["speech"], tags:[["stub","bad"]]},
+    {id:"r_gs", t:"/line-group-summary/runs", p:"features/group_summary/routes.py", i:["POST 202 (Backend cron) · GET /{batch_id}"], to:["group_summary"]},
+    {id:"r_per", t:"POST /api/message/persona", p:"features/persona/routes.py", i:["Backend ← Hook: rewrite ข้อความ"], to:["persona"]},
+    {id:"r_asg", t:"POST /api/assignment/search", p:"features/employees/routes.py", i:["ใครมอบงานให้ใครได้"], to:["employees"]},
+    {id:"r_jobs", t:"/jobs/{id} · /cancel", p:"features/jobs/routes.py", i:["สถานะ % / ยกเลิก slide, voice"], to:["jobs"]},
+    {id:"r_bc", t:"/api/bot-config/* · /console", p:"features/bot_config/routes.py", i:["12 route + หน้า console.html"], to:["bot_config"], tags:[["prod ปิด","warn"]]},
+    {id:"r_eval", t:"/api/evaluate/search/*", p:"features/search_eval/routes.py", i:["6 route ให้ tester"], to:["search_eval"]},
+    {id:"r_app", t:"main.py", p:"src/todolist/main.py · 109 บรรทัด", i:["สร้าง app, ผูก protected_api ทุก router","lifespan: เปิด/ปิด DB pool","GET /health, / → /docs"], to:["k_core","k_db","k_config"]}
+  ]},
+  { h:"ส่วนหลัก · features/", sub:"1 โฟลเดอร์ต่อ feature มี routes.py ของตัวเอง", main:true, cards:[
+    {id:"chat", t:"chat", p:"features/chat/", s:"48 ไฟล์ · 21.8k", i:["<code>workflow.py</code> LangGraph: get_history → unified_agent ⇄ unified_tools / slide_agent → finalize → save_history","<code>agent.py</code> LineAgent: bind tools, repairs, _run_unified_tool_call","<code>nodes/</code> unified (2.3k), history, slides, legacy","<code>tools/</code> tasks, task_query, projects, people, notes, agenda, ocr, slides, jobs · <code>deps.py</code> จุด patch ในเทส","<code>utils/</code> task_operations/edit, review_sessions, personal_tasks, project_operations, replies, metadata …","<code>prompt.py</code> (1.2k) · <code>context.py</code> ContextVars ต่อ request","<code>task_sessions.py</code> อ่าน line_chat_task_sessions","รายไฟล์และ import: tab “AI · chat ภายใน”"], to:["employees","task_search","project_search","meeting","slides","jobs","bot_config","history","speech","k_llm","c_task","c_project","c_ocr","c_slide","s_pg"]},
+    {id:"meeting", t:"meeting", p:"features/meeting/", s:"17 ไฟล์ · 2.7k", i:["<code>tools.py</code> 7 tool: free-busy, slots, query, detail, create, update, cancel","<code>operations.py</code> · <code>resolution.py</code> หาคน/โปรเจกต์","<code>selection.py</code> + <code>response_guard.py</code> แก้ tool ที่เลือกผิด","<code>store.py</code> operation journal ใน Redis","<code>deps.py</code> จุด patch"], to:["employees","history","project_search","c_meeting","s_redis"]},
+    {id:"slides", t:"slides", p:"features/slides/", s:"9 ไฟล์ · 2.0k", i:["<code>agent.py</code> slide agent + SLIDE_TOOLS","<code>deck.py</code> โครง deck · <code>render.py</code> .pptx","<code>publish.py</code> GCS slides/ + short link","<code>reply.py</code> สรุปคำตอบ"], to:["chat","jobs","k_llm","k_storage","c_slide"]},
+    {id:"speech", t:"speech", p:"features/speech/", s:"33 ไฟล์ · 2.4k", i:["<code>workflow/multi_channel/</code> graph 8 node + state","<code>vad/silero.py</code> (gate off) · <code>asr/async_google_asr.py</code> chirp_3 + chunk","<code>services/task_extraction</code> · <code>meeting_summary</code> (prompt + structured output)","<code>employee_resolver.py</code> · <code>utils/vtt.py</code>"], to:["employees","jobs","chat","k_llm","k_storage","x_stt","c_events","c_ingest"]},
+    {id:"group_summary", t:"group_summary", p:"features/group_summary/", s:"9 ไฟล์ · 1.6k", i:["<code>runs.py</code> batch: list → context → สรุป → merge รอบก่อน","<code>workflow.py</code> · <code>prompt.py</code> · <code>preprocessing.py</code>","<code>run_logs.py</code> + <code>token_usage.py</code> เขียน Postgres"], to:["employees","history","k_llm","k_db","c_group","s_pg"]},
+    {id:"employees", t:"employees", p:"features/employees/", s:"6 ไฟล์ · 2.8k", i:["<code>postgres_people.py</code> หาคน, ขอบเขตมอบงาน (_units_below, _same_level, heads)","<code>department_search.py</code> org_chain / org_chart / หัวหน้าหน่วย","<code>member_search.py</code> หัวหน้าจากชื่อหน่วย"], to:["k_db","s_pg"]},
+    {id:"task_search", t:"task_search", p:"features/task_search/", s:"8 ไฟล์ · 1.5k", i:["<code>v3.py</code> pg_trgm ทั้ง scope (default) · v1, v2","<code>rerank.py</code> LLM · <code>notes.py</code> ค้นโน้ต","ใช้เมื่อ task_query.search_enabled"], to:["k_db","k_llm","x_di","s_pg"], tags:[["flag off","warn"]]},
+    {id:"project_search", t:"project_search", p:"features/project_search/", s:"4 ไฟล์ · 0.6k", i:["<code>search.py</code> hybrid-v2: fuzzy + code + vector top-20","<code>rerank.py</code> เมื่อไม่มั่นใจ"], to:["k_db","k_llm","x_di","s_pg"]},
+    {id:"history", t:"history", p:"features/history/", s:"6 ไฟล์ · 1.3k", i:["<code>redis_history.py</code> ประวัติแชต TTL 1 h, 10 turn + Redis client ที่ feature อื่นใช้ร่วม","postgres_history / sqlite_history: ไม่ได้ใช้"], to:["s_redis"], tags:[["2 ไฟล์ dead","bad"]]},
+    {id:"jobs", t:"jobs", p:"features/jobs/", s:"4 ไฟล์ · 0.4k", i:["<code>store.py</code> job record ใน Redis (ไฟล์เดียวที่รู้ schema)","<code>service.py</code> Progress, milestone, cancel, heartbeat"], to:["history","c_events","s_redis"]},
+    {id:"bot_config", t:"bot_config", p:"features/bot_config/", s:"6 ไฟล์ · 0.9k + console.html", i:["<code>schemas.py</code> capability, catalog 6 key, tool → หมวด","<code>policy.py</code> permits แบบ dashboard","<code>store.py</code> Redis · <code>service.py</code> load_turn, check_call/result"], to:["employees","history","s_redis"], tags:[["prod ปิด","warn"]]},
+    {id:"persona", t:"persona", p:"features/persona/", s:"4 ไฟล์ · 0.2k", i:["<code>prompt.py</code> น้องลิสท์ · <code>service.py</code> rewrite + fallback"], to:["chat","k_llm"]},
+    {id:"search_eval", t:"search_eval", p:"features/search_eval/", s:"4 ไฟล์ · 0.3k", i:["รันค้นงาน/โปรเจกต์/คน คืน id + latency"], to:["task_search","project_search","employees"]}
+  ]},
+  { h:"ส่วนกลาง", sub:"kernel (ไม่ import feature) + backend/ clients", cards:[
+    {id:"k_core", t:"core/", p:"src/todolist/core/", s:"10 · 0.7k", i:["<code>auth.py</code> Bearer compare_digest","<code>env.py</code>, <code>environment.py</code>, <code>credentials.py</code> bootstrap + AWS SM","<code>tunnels/</code> SSH postgres, redis · <code>paths.py</code>, <code>time.py</code>"], to:["x_aws"]},
+    {id:"k_config", t:"config/ + ไฟล์ config", p:"src/todolist/config/ · config/*.yaml · assets/", s:"3 · 0.5k", i:["<code>settings.py</code> Settings มี type · <code>sources.py</code> ลำดับชั้น","default.yaml → {local,staging,production}.yaml → .env/AWS (secret)","assets/model_list.yaml, silero_vad.onnx"], tags:[["production.yaml key ซ้ำ","warn"]]},
+    {id:"k_db", t:"db/", p:"src/todolist/db/", s:"3 · 0.4k", i:["<code>engine.py</code> async SQLAlchemy + write_engine + run_sync","<code>models.py</code> ORM อ่านอย่างเดียวของตาราง Backend"], to:["s_pg"]},
+    {id:"k_llm", t:"llm/", p:"src/todolist/llm/", s:"9 · 1.4k", i:["<code>model_list_loader.py</code> LiteLLM router","<code>langfuse.py</code> · <code>usage.py</code> token/cost","<code>image_generator.py</code> · <code>cache.py</code> · <code>warnings.py</code>"], to:["x_vertex","x_lf"]},
+    {id:"k_storage", t:"storage/", p:"src/todolist/storage/gcs.py", s:"2 · 0.1k", i:["อ่าน/เขียน GCS, signed URL"], to:["s_gcs"]},
+    {id:"c_task", t:"backend/ · งาน", p:"task_command.py, task_query.py, ball_history.py", i:["/api/tasks/ai/create|update, /sessions","/api/tasks/query (เมื่อไม่ค้นตรง DB)","/api/tasks/history/query"], to:["x_be"]},
+    {id:"c_project", t:"backend/ · โปรเจกต์", p:"project_create.py, project_status.py", i:["/api/line/projects/* create, update, delete, members, detail, tasks/query"], to:["x_be"]},
+    {id:"c_meeting", t:"backend/ · ประชุม", p:"meeting.py", i:["/api/calendar/* 7 เส้น"], to:["x_be"]},
+    {id:"c_ocr", t:"backend/ · ไฟล์/OCR", p:"store_file.py, file_rag_search.py, ocr_interrupt.py, jobs_recent.py", i:["/api/ocr/*, /api/ai/jobs/recent"], to:["x_be"]},
+    {id:"c_slide", t:"backend/ · สไลด์", p:"slide_metadata.py, slide_query.py, slide_presign.py, slide_short_url.py", i:["/api/slides, /slides/query, presign, /api/short-links"], to:["x_be"]},
+    {id:"c_events", t:"backend/ · event + callback", p:"job_events.py, callback.py", i:["/api/ai/jobs/events","/api/{line/voice|meeting}/callback/ai/*"], to:["x_be"]},
+    {id:"c_group", t:"backend/ · กลุ่ม LINE", p:"line_group_list.py, line_group_chat.py", i:["/api/line-groups/list, /context"], to:["x_be"]},
+    {id:"c_ingest", t:"backend/ · HR ingest", p:"meeting_ingest.py", i:["ส่งสรุปประชุมไป host ภายนอก (gate)"], to:["x_hr"]},
+    {id:"c_http", t:"backend/http.py", p:"backend/http.py", i:["post_project_api: x-internal-token, timeout, retry"], to:["x_be"]}
+  ]},
+  { h:"ที่เก็บ / ภายนอก", cards:[
+    {id:"s_pg", t:"PostgreSQL ai_skr", db:true, c:"--store", i:["อ่าน: employees, positions, departments, employee_permission, projects, members, project_departments, tasks (+embedding), line_chat_task_sessions","เขียน: ai_line_group_run_logs, _token"]},
+    {id:"s_redis", t:"Redis", db:true, c:"--store", i:["{prefix}:{line_user_id} history","job:*, jobs:{owner}","bot_config:*","meeting:*:operation:*","group_summary:*"]},
+    {id:"s_gcs", t:"GCS", db:true, c:"--store", i:["อ่าน gs:// ที่ Backend ส่ง","เขียน ASR chunk, slides/*.pptx"]},
+    {id:"x_be", t:"Backend todo-list-api", c:"--be", i:["x-internal-token: PROJECT_API_TOKEN / CALLBACK_INTERNAL_TOKEN"]},
+    {id:"x_vertex", t:"Vertex Gemini", c:"--ext", i:["gemini-3.1-flash-lite ทุก step","gemini-3.1-flash-image"]},
+    {id:"x_stt", t:"Google STT v2", c:"--ext", i:["chirp_3 th-TH"]},
+    {id:"x_di", t:"DeepInfra", c:"--ext", i:["BAAI/bge-m3 512 มิติ"]},
+    {id:"x_lf", t:"Langfuse", c:"--ext", i:["trace + usage"]},
+    {id:"x_hr", t:"HR meeting ingest", c:"--ext", i:["railway host /api/meetings/ingest"]},
+    {id:"x_aws", t:"AWS Secrets Manager", c:"--ext", i:["secret เมื่อรันบน server"]}
+  ]}
+  ]},
+
+{ key:"aimap", name:"AI · ภาพรวมแบบกลุ่ม", color:"--ai",
+  sum:"สไตล์ภาพรวม: กรอบทางเข้า → features/ → kernel และ backend/ clients → ที่เก็บข้อมูลแตกให้เห็นข้างใน (ตาราง PostgreSQL, key ใน Redis ที่ขึ้นต้นด้วย {p} = REDIS_KEY_PREFIX, prefix ใน GCS) → ระบบภายนอก · เส้นจาก feature ชี้ไปที่ตาราง/key ที่ใช้จริง · กดกล่องเพื่อดูรายละเอียด",
+  groups:[
+   {id:"IN", t:"ทางเข้า · Bearer ทุก route ยกเว้น /health /console", w:200, nodes:[
+     {id:"R_chat", t:"POST /chat", i:["Hook / Backend · ตอบ sync"]},
+     {id:"R_hist", t:"POST /chat/history", i:["Backend เขียนประวัติ"]},
+     {id:"R_mc", t:"POST /multi-channel", i:["202 + BackgroundTasks"]},
+     {id:"R_stub", t:"POST /line · /zoom", i:["stub ตอบ ok"], tags:[["stub","bad"]]},
+     {id:"R_gs", t:"/line-group-summary/runs", i:["POST 202 · GET /{batch_id}"]},
+     {id:"R_per", t:"POST /api/message/persona", i:["rewrite ข้อความ"]},
+     {id:"R_asg", t:"POST /api/assignment/search", i:["ขอบเขตมอบงาน"]},
+     {id:"R_jobs", t:"/jobs/{id} · /cancel", i:["สถานะ / ยกเลิก job"]},
+     {id:"R_bc", t:"/api/bot-config/* · /console", i:["prod ปิด"]},
+     {id:"R_eval", t:"/api/evaluate/search/*", i:["tester"]}]},
+   {id:"FEAT", t:"features/", w:220, nodes:[
+     {id:"CHAT", t:"chat", s:"48 ไฟล์ · 21.8k", p:"features/chat/", feat:true, i:["workflow · agent · nodes · tools · prompt · context","รายไฟล์: tab “AI · chat ภายใน”"]},
+     {id:"SPEECH", t:"speech", s:"33 · 2.4k", p:"features/speech/", feat:true, i:["vad · asr chirp_3 · multi_channel graph · task_extraction · meeting_summary"]},
+     {id:"GS", t:"group_summary", s:"9 · 1.6k", p:"features/group_summary/", feat:true, i:["runs · workflow · run_logs · token_usage"]},
+     {id:"MEET", t:"meeting", s:"17 · 2.7k", p:"features/meeting/", i:["7 tools · operations · selection · journal"]},
+     {id:"SL", t:"slides", s:"9 · 2.0k", p:"features/slides/", i:["agent · deck · render .pptx · publish"]},
+     {id:"EMP", t:"employees", s:"6 · 2.8k", p:"features/employees/", i:["postgres_people · department_search · member_search"]},
+     {id:"TS", t:"task_search", s:"8 · 1.5k", p:"features/task_search/", i:["v3 pg_trgm + vector + rerank"], tags:[["flag off","warn"]]},
+     {id:"PS", t:"project_search", s:"4 · 0.6k", p:"features/project_search/", i:["hybrid-v2 fuzzy + code + vector"]},
+     {id:"BC", t:"bot_config", s:"6 · 0.9k", p:"features/bot_config/", i:["policy · store · service · console.html"], tags:[["prod ปิด","warn"]]},
+     {id:"HIST", t:"history", s:"6 · 1.3k", p:"features/history/", i:["redis_history + Redis client ที่ feature อื่นยืมใช้"]},
+     {id:"JOBS", t:"jobs", s:"4 · 0.4k", p:"features/jobs/", i:["store (Redis) · service (progress, cancel)"]},
+     {id:"PERS", t:"persona", s:"4 · 0.2k", p:"features/persona/", i:["rewrite เป็นเสียงน้องลิสท์"]},
+     {id:"SE", t:"search_eval", s:"4 · 0.3k", p:"features/search_eval/", i:["รันค้น 3 แบบให้ tester"]}]},
+   {id:"KERNEL", t:"kernel · ไม่ import feature", w:210, nodes:[
+     {id:"K_llm", t:"llm/", s:"9 · 1.4k", i:["LiteLLM router · Langfuse · usage · image"]},
+     {id:"K_db", t:"db/", s:"3 · 0.4k", i:["async SQLAlchemy engine + write_engine · ORM"]},
+     {id:"K_stor", t:"storage/", s:"2 · 0.1k", i:["gcs.py"]},
+     {id:"K_core", t:"core/", s:"10 · 0.7k", i:["auth · env · credentials · tunnels"]},
+     {id:"K_cfg", t:"config/", s:"3 · 0.5k", i:["settings · sources · config/*.yaml"]}]},
+   {id:"BEC", t:"backend/ · HTTP clients", w:210, nodes:[
+     {id:"B_task", t:"งาน", p:"task_command · task_query · ball_history", i:["/api/tasks/ai/*, /tasks/query, /history/query"]},
+     {id:"B_proj", t:"โปรเจกต์", p:"project_create · project_status", i:["/api/line/projects/*"]},
+     {id:"B_meet", t:"ประชุม", p:"meeting", i:["/api/calendar/*"]},
+     {id:"B_ocr", t:"ไฟล์ / OCR", p:"store_file · file_rag_search · ocr_interrupt · jobs_recent", i:["/api/ocr/*, /api/ai/jobs/recent"]},
+     {id:"B_sl", t:"สไลด์", p:"slide_* · short_url", i:["/api/slides, /short-links"]},
+     {id:"B_ev", t:"event + callback", p:"job_events · callback", i:["/api/ai/jobs/events, /callback/ai/*"]},
+     {id:"B_grp", t:"กลุ่ม LINE", p:"line_group_list · line_group_chat", i:["/api/line-groups/*"]},
+     {id:"B_ing", t:"HR ingest", p:"meeting_ingest", i:["host ภายนอก (gate)"]}]},
+   {id:"PG", t:"PostgreSQL ai_skr", w:230, data:true, nodes:[
+     {id:"T_org", t:"คนและองค์กร", cyl:true, p:"อ่าน", i:["employees · employee_organization_positions · organization_positions · departments"]},
+     {id:"T_perm", t:"employee_permission", cyl:true, p:"อ่าน", i:["is_admin (gate โปรเจกต์), LEGACY flags"]},
+     {id:"T_proj", t:"โปรเจกต์", cyl:true, p:"อ่าน", i:["projects · project_members · project_departments"]},
+     {id:"T_task", t:"งาน", cyl:true, p:"อ่าน", i:["tasks + description_embedding · task_assignments · task_sources"]},
+     {id:"T_sess", t:"line_chat_task_sessions", cyl:true, p:"อ่าน", i:["review จากประชุม/กลุ่ม"]},
+     {id:"T_logs", t:"ai_line_group_run_logs", cyl:true, p:"เขียน", i:["+ _token · Backend poll ตารางนี้"]}]},
+   {id:"RD", t:"Redis · {p} = REDIS_KEY_PREFIX", w:230, data:true, nodes:[
+     {id:"K_hist", t:"{p}:{line_user_id}", cyl:true, p:"ประวัติแชต TTL 1 ชม. · 10 turn", i:["เก็บ _pending_review, _review_sessions, _parked_batch, _slide_deck, _meeting_context"]},
+     {id:"K_job", t:"{p}:job:{id} · jobs:{owner}", cyl:true, p:"job TTL 3 วัน", i:["slide / voice · 20 งานล่าสุดต่อคน"]},
+     {id:"K_bc", t:"{p}:bot_config:*", cyl:true, p:"bu · user · last_turn", i:["set bus / users · sandbox"]},
+     {id:"K_meet", t:"{p}:meeting:{sha}:operation:{id}", cyl:true, p:"journal การนัด", i:["กันจองซ้ำ / กู้คืน"]},
+     {id:"K_gs", t:"{p}:group_summary:*", cyl:true, p:"{group}:{day} · _run:{batch}", i:["cache สรุป + progress ของ batch"]}]},
+   {id:"GCSB", t:"GCS bucket", w:230, data:true, nodes:[
+     {id:"G_in", t:"gs:// จาก Backend", cyl:true, p:"อ่าน", i:["line-inputs/ · voice-messages/ · meetings/…"]},
+     {id:"G_tmp", t:"ASR chunk", cyl:true, p:"เขียนชั่วคราว", i:["ลบใน cleanup"]},
+     {id:"G_sl", t:"slides/*.pptx", cyl:true, p:"เขียน", i:["+ signed URL"]}]},
+   {id:"EXT", t:"ระบบภายนอก", w:200, nodes:[
+     {id:"X_be", t:"Backend API", c:"--be", i:["todo-list-api · x-internal-token"]},
+     {id:"X_vx", t:"Vertex Gemini", c:"--ext", i:["3.1-flash-lite · flash-image"]},
+     {id:"X_lf", t:"Langfuse", c:"--ext", i:["trace + usage"]},
+     {id:"X_stt", t:"Google STT v2", c:"--ext", i:["chirp_3"]},
+     {id:"X_di", t:"DeepInfra", c:"--ext", i:["bge-m3 512 มิติ"]},
+     {id:"X_hr", t:"HR meeting ingest", c:"--ext", i:["railway host"]},
+     {id:"X_aws", t:"AWS Secrets Manager", c:"--ext", i:["secret บน server"]}]}
+  ],
+  edges:[
+   ["R_chat","CHAT"],["R_hist","HIST"],["R_mc","SPEECH"],["R_stub","SPEECH"],["R_gs","GS"],["R_per","PERS"],["R_asg","EMP"],["R_jobs","JOBS"],["R_bc","BC"],["R_eval","SE"],
+   ["CHAT","EMP"],["CHAT","TS"],["CHAT","PS"],["CHAT","MEET"],["CHAT","SL"],["CHAT","JOBS"],["CHAT","BC"],["CHAT","HIST"],
+   ["SPEECH","JOBS"],["SPEECH","EMP"],["SL","JOBS"],["SE","TS"],["SE","PS"],["SE","EMP"],["MEET","EMP"],["BC","EMP"],["GS","EMP"],
+   ["CHAT","T_sess"],["EMP","T_org"],["EMP","T_perm"],["TS","T_task"],["PS","T_proj"],["GS","T_logs"],
+   ["HIST","K_hist"],["JOBS","K_job"],["BC","K_bc"],["MEET","K_meet"],["GS","K_gs"],
+   ["SPEECH","G_in"],["SPEECH","G_tmp"],["SL","G_sl"],
+   ["CHAT","K_llm"],["SPEECH","K_llm"],["GS","K_llm"],["SL","K_llm"],["PERS","K_llm"],
+   ["CHAT","B_task"],["CHAT","B_proj"],["CHAT","B_ocr"],["CHAT","B_sl"],["MEET","B_meet"],["JOBS","B_ev"],["SPEECH","B_ev"],["SPEECH","B_ing"],["GS","B_grp"],
+   ["K_db","PG"],["K_stor","GCSB"],["K_llm","X_vx"],["K_llm","X_lf"],["K_core","X_aws"],["SPEECH","X_stt"],["TS","X_di"],["PS","X_di"],
+   ["B_task","X_be"],["B_proj","X_be"],["B_meet","X_be"],["B_ocr","X_be"],["B_sl","X_be"],["B_ev","X_be"],["B_grp","X_be"],["B_ing","X_hr"]
+  ],
+  lanes:[] },
+/*CHAT_TAB*/{"key": "chat", "name": "AI · chat ภายใน", "color": "--ai", "gap": 56, "cols": "minmax(170px,.85fr) minmax(190px,.9fr) minmax(230px,1.25fr) minmax(300px,1.6fr) minmax(170px,.8fr)", "sum": "features/chat/ · 48 ไฟล์ · 21,815 บรรทัด · เส้น = import จริงจาก AST (ไม่นับ import ใน type-check) · utils/__init__ และ tools/__init__ เป็น facade: ไฟล์ที่ import \"chat.utils\" จะชี้ไปที่ facade แล้ว facade ชี้ต่อไปยังไฟล์จริง", "lanes": [{"h": "ทางเข้า + graph", "sub": "routes → workflow → nodes", "main": false, "cards": [{"id": "c_chat", "t": "chat/__init__", "p": "features/chat/__init__.py", "s": "13 บรรทัด", "i": ["re-export ChatWorkflowService ของ package"], "to": ["c_chat_workflow"], "tags": [["__init__ / facade", ""]]}, {"id": "c_chat_routes", "t": "routes", "p": "features/chat/routes.py", "s": "298 บรรทัด", "i": ["POST /chat: ตรวจ request, เรียก workflow, ตัด metadata สาธารณะ (_response_metadata)", "<code>chat</code>"], "to": ["c_chat_schemas", "c_chat_utils", "c_chat_workflow", "o_meeting"]}, {"id": "c_chat_workflow", "t": "workflow", "p": "features/chat/workflow.py", "s": "241 บรรทัด", "i": ["ChatWorkflowService.run: โหลด bot_config ของ turn, ประกอบ LangGraph (build_unified_workflow_graph), Langfuse, model", "<code>ensure_langchain_root_compat</code>, <code>create_chat_model</code>, <code>build_unified_workflow_graph</code>, <code>render_workflow_assets</code>, <code>ChatWorkflowService</code>, <code>build_workflow_mermaid</code> +2"], "to": ["c_chat_agent", "c_chat_nodes", "c_chat_schemas", "c_chat_utils", "o_botcfg", "o_history", "o_kernel", "o_llm"]}, {"id": "c_chat_service", "t": "service", "p": "features/chat/service.py", "s": "10 บรรทัด", "i": ["ทางเดียวที่ feature อื่นใช้ chat ได้: message, metadata, schema ของผล tool"], "to": ["c_chat_utils"]}, {"id": "c_chat_nodes", "t": "nodes", "p": "features/chat/nodes/__init__.py", "s": "35 บรรทัด", "i": ["ChatWorkflowNodes = mixin รวม node ทุกกลุ่ม", "<code>ChatWorkflowNodes</code>"], "to": ["c_chat_nodes_history", "c_chat_nodes_legacy", "c_chat_nodes_slides", "c_chat_nodes_unified"], "tags": [["__init__ / facade", ""]]}, {"id": "c_chat_nodes_history", "t": "nodes.history", "p": "features/chat/nodes/history.py", "s": "187 บรรทัด", "i": ["get_history / save_history: Redis, #reset, ลงทะเบียน review session จาก entry ของ Hook", "<code>HistoryNodes</code>"], "to": ["c_chat_schemas", "c_chat_tools_deps", "c_chat_utils", "c_chat_utils_replies", "c_chat_utils_review_sessions"]}, {"id": "c_chat_nodes_unified", "t": "nodes.unified", "p": "features/chat/nodes/unified.py", "s": "2,338 บรรทัด", "i": ["หัวใจของ turn: unified_agent, unified_tools, finalize_response, router, shortcut, _save_confirmed_batch (2.3k)", "<code>latest_tool_batch</code>, <code>UnifiedNodes</code>"], "to": ["c_chat_nodes_history", "c_chat_prompt", "c_chat_schemas", "c_chat_tools_deps", "c_chat_tools_projects", "c_chat_tools_task_query", "c_chat_tools_tasks", "c_chat_utils", "c_chat_utils_node_metadata", "c_chat_utils_personal_tasks", "c_chat_utils_replies", "c_chat_utils_review_sessions", "c_chat_utils_task_command", "c_chat_utils_task_operations_edit", "c_chat_utils_task_query_results", "o_llm", "o_meeting", "o_slides"]}, {"id": "c_chat_nodes_slides", "t": "nodes.slides", "p": "features/chat/nodes/slides.py", "s": "384 บรรทัด", "i": ["slide_agent node: ทำในคำขอหรือเข้าคิว job, publish .pptx, ตอบ", "<code>SlideNodes</code>"], "to": ["c_chat_nodes_unified", "c_chat_schemas", "c_chat_utils", "o_history", "o_jobs", "o_kernel", "o_llm", "o_slides"]}, {"id": "c_chat_nodes_legacy", "t": "nodes.legacy", "p": "features/chat/nodes/legacy.py", "s": "593 บรรทัด", "i": ["node ของ graph เก่า (router, compose, task query) ไม่ได้ต่อใน graph แล้ว", "<code>LegacyNodes</code>"], "to": ["c_chat_nodes_history", "c_chat_nodes_unified", "c_chat_prompt", "c_chat_schemas", "c_chat_utils", "c_chat_utils_personal_tasks", "o_llm"], "tags": [["ไม่ได้ต่อใน graph", "bad"]]}]}, {"h": "agent + ของกลางใน chat", "sub": "agent, prompt, schemas, context", "main": false, "cards": [{"id": "c_chat_agent", "t": "agent", "p": "features/chat/agent.py", "s": "1,025 บรรทัด", "i": ["LineAgent: bind tool ตาม bot_config, เรียก model, repair_* 8 ตัว, _run_unified_tool_call (check_call/check_result)", "<code>repair_unsaved_claim</code>, <code>repair_unmade_update</code>, <code>repair_skipped_project_create</code>, <code>repair_imitated_tool_reply</code>, <code>repair_unqueried_task_answer</code>, <code>repair_progress_as_new_work</code> +3"], "to": ["c_chat_prompt", "c_chat_schemas", "c_chat_tools", "c_chat_tools_agenda", "c_chat_tools_projects", "c_chat_tools_tasks", "c_chat_utils", "c_chat_utils_personal_tasks", "c_chat_utils_project_operations", "o_botcfg", "o_llm", "o_meeting"]}, {"id": "c_chat_prompt", "t": "prompt", "p": "features/chat/prompt.py", "s": "1,244 บรรทัด", "i": ["system prompt ทั้งหมดของ agent, extractor, edit model (1.2k บรรทัด ไม่มีโค้ด)"], "to": []}, {"id": "c_chat_schemas", "t": "schemas", "p": "features/chat/schemas.py", "s": "1,385 บรรทัด", "i": ["Pydantic ของ request/response/งาน/คน/หลักฐาน (60 คลาส) ที่ทุกไฟล์ใช้", "<code>normalize_assignee_names</code>, <code>Intent</code>, <code>ChatMessage</code>, <code>ChatRequest</code>, <code>Usage</code>, <code>ChatEmployee</code> +54"], "to": ["o_llm"]}, {"id": "c_chat_context", "t": "context", "p": "features/chat/context.py", "s": "28 บรรทัด", "i": ["ContextVar ต่อ request: actor, turn, bot config ที่ node ส่งให้ tool โดยไม่ผ่าน argument"], "to": []}, {"id": "c_chat_suggestions", "t": "suggestions", "p": "features/chat/suggestions.py", "s": "74 บรรทัด", "i": ["บรรทัด 💡 แนะนำขั้นถัดไปใต้รายการงาน (LLM)", "<code>suggest_next_step</code>"], "to": ["c_chat_prompt", "c_chat_utils_messages", "o_llm"]}, {"id": "c_chat_task_sessions", "t": "task_sessions", "p": "features/chat/task_sessions.py", "s": "53 บรรทัด", "i": ["อ่าน line_chat_task_sessions ของ Backend ตรงจาก DB (read-only)", "<code>task_session_state</code>, <code>review_entry</code>"], "to": ["c_chat_utils_review_sessions", "o_kernel"]}]}, {"h": "tools/", "sub": "tool ที่ model เรียกได้", "main": true, "cards": [{"id": "c_chat_tools", "t": "tools", "p": "features/chat/tools/__init__.py", "s": "190 บรรทัด", "i": ["UNIFIED_TOOLS / CHAT_TOOLS: ทะเบียน tool ทั้งหมดที่ agent bind"], "to": ["c_chat_tools_agenda", "c_chat_tools_common", "c_chat_tools_deps", "c_chat_tools_jobs", "c_chat_tools_notes", "c_chat_tools_ocr", "c_chat_tools_people", "c_chat_tools_projects", "c_chat_tools_slides", "c_chat_tools_task_query", "c_chat_tools_tasks", "o_meeting", "o_slides"], "tags": [["__init__ / facade", ""]]}, {"id": "c_chat_tools_agenda", "t": "tools.agenda", "p": "features/chat/tools/agenda.py", "s": "158 บรรทัด", "i": ["today_agenda: งาน + ประชุมวันนี้ในคำตอบเดียว", "<code>TodayAgendaArgs</code>, <code>agenda_reply</code>, <code>today_agenda</code>"], "to": ["c_chat_tools_deps", "c_chat_tools_task_query", "c_chat_utils", "c_chat_utils_task_query_results", "o_kernel", "o_llm", "o_meeting"]}, {"id": "c_chat_tools_common", "t": "tools.common", "p": "features/chat/tools/common.py", "s": "66 บรรทัด", "i": ["context ของ edit_tasks, tool get_current_time, รัน coroutine จาก tool sync", "<code>set_edit_tasks_context</code>, <code>reset_edit_tasks_context</code>, <code>get_current_time</code>"], "to": ["c_chat_schemas", "c_chat_utils"]}, {"id": "c_chat_tools_deps", "t": "tools.deps", "p": "features/chat/tools/deps.py", "s": "89 บรรทัด", "i": ["จุดเดียวที่ tool เรียกนอก chat (backend client, search, employees, speech, bot_config) และที่เทส patch"], "to": ["c_chat_schemas", "c_chat_suggestions", "c_chat_task_sessions", "c_chat_utils_personal_tasks", "o_backend", "o_botcfg", "o_employees", "o_kernel", "o_llm", "o_search", "o_speech"]}, {"id": "c_chat_tools_jobs", "t": "tools.jobs", "p": "features/chat/tools/jobs.py", "s": "63 บรรทัด", "i": ["job_status, cancel_job ของ slide/voice", "<code>JobArgs</code>, <code>job_status</code>, <code>cancel_job</code>"], "to": ["c_chat_utils", "o_jobs"]}, {"id": "c_chat_tools_notes", "t": "tools.notes", "p": "features/chat/tools/notes.py", "s": "182 บรรทัด", "i": ["create_note, edit_note, query_notes (โน้ตไม่ใช่งาน)", "<code>CreateNoteArgs</code>, <code>create_note</code>, <code>QueryNotesArgs</code>, <code>query_notes</code>, <code>EditNoteArgs</code>, <code>edit_note</code>"], "to": ["c_chat_tools_deps", "c_chat_tools_tasks", "c_chat_utils", "c_chat_utils_personal_tasks", "c_chat_utils_task_operations_edit", "o_speech"]}, {"id": "c_chat_tools_ocr", "t": "tools.ocr", "p": "features/chat/tools/ocr.py", "s": "239 บรรทัด", "i": ["ocr_job_status, interrupt_ocr ผ่าน Backend", "<code>OcrJobStatusArgs</code>, <code>InterruptOcrArgs</code>, <code>ocr_job_status</code>, <code>interrupt_ocr</code>"], "to": ["c_chat_schemas", "c_chat_tools_deps", "c_chat_utils", "o_backend"]}, {"id": "c_chat_tools_people", "t": "tools.people", "p": "features/chat/tools/people.py", "s": "606 บรรทัด", "i": ["search_members, resolve_people, get_detail_me, list_departments/members/projects, org_chain, org_chart", "<code>resolve_people</code>, <code>get_detail_people</code>, <code>SearchMembersArgs</code>, <code>search_members</code>, <code>list_departments</code>, <code>ListDepartmentsArgs</code> +11"], "to": ["c_chat_schemas", "c_chat_tools_deps", "c_chat_utils"]}, {"id": "c_chat_tools_projects", "t": "tools.projects", "p": "features/chat/tools/projects.py", "s": "1,522 บรรทัด", "i": ["get_project_name, create/edit/delete_project, store_file, file_rag_search, project_status/overview, ball history (1.5k)", "<code>get_project_name</code>, <code>CreateProjectArgs</code>, <code>choice_in</code>, <code>project_flow_question</code>, <code>create_project</code>, <code>StoreFileArgs</code> +14"], "to": ["c_chat_tools_deps", "c_chat_tools_people", "c_chat_utils", "c_chat_utils_personal_tasks", "c_chat_utils_project_operations", "c_chat_utils_replies", "c_chat_utils_task_operations_edit", "o_backend", "o_kernel"]}, {"id": "c_chat_tools_slides", "t": "tools.slides", "p": "features/chat/tools/slides.py", "s": "326 บรรทัด", "i": ["query_slides: ประวัติสไลด์, โหลด deck มาแก้", "<code>QuerySlidesArgs</code>, <code>query_slides</code>"], "to": ["c_chat_schemas", "c_chat_tools_deps", "c_chat_utils", "o_backend"]}, {"id": "c_chat_tools_task_query", "t": "tools.task_query", "p": "features/chat/tools/task_query.py", "s": "742 บรรทัด", "i": ["build_task_query_payload + query_tasks: Backend หรือ task_search, mask แถวตามสิทธิ์", "<code>BuildTaskQueryPayloadArgs</code>, <code>build_task_query_payload</code>, <code>QueryTasksArgs</code>, <code>query_tasks</code>"], "to": ["c_chat_schemas", "c_chat_tools_deps", "c_chat_utils", "c_chat_utils_personal_tasks", "c_chat_utils_task_query_results", "o_backend", "o_llm"]}, {"id": "c_chat_tools_tasks", "t": "tools.tasks", "p": "features/chat/tools/tasks.py", "s": "1,400 บรรทัด", "i": ["create_task, resolve_personal_task, edit_tasks, set_task_flow_status (1.4k)", "<code>CreateTaskArgs</code>, <code>create_task</code>, <code>ResolvePersonalTaskArgs</code>, <code>resolve_personal_task</code>, <code>edit_tasks</code>, <code>set_task_flow_status</code>"], "to": ["c_chat_prompt", "c_chat_schemas", "c_chat_tools_common", "c_chat_tools_deps", "c_chat_tools_people", "c_chat_utils", "c_chat_utils_personal_tasks", "c_chat_utils_project_operations", "c_chat_utils_review_sessions", "c_chat_utils_task_operations", "c_chat_utils_task_query_results", "o_backend", "o_speech"]}]}, {"h": "utils/", "sub": "Operations classes", "main": true, "cards": [{"id": "c_chat_utils", "t": "utils", "p": "features/chat/utils/__init__.py", "s": "43 บรรทัด", "i": ["facade: re-export *Operations ของ utils ให้ไฟล์อื่น import ที่เดียว"], "to": ["c_chat_utils_agent_responses", "c_chat_utils_messages", "c_chat_utils_metadata", "c_chat_utils_node_metadata", "c_chat_utils_project_operations", "c_chat_utils_replies", "c_chat_utils_task_command", "c_chat_utils_task_operations", "c_chat_utils_tool_operations", "c_chat_utils_workflow_assets"], "tags": [["__init__ / facade", ""]]}, {"id": "c_chat_utils_agent_responses", "t": "utils.agent_responses", "p": "features/chat/utils/agent_responses.py", "s": "118 บรรทัด", "i": ["ทำคำตอบของ model ให้เป็นรูปเดียว (AgentResponseOperations)", "<code>AgentResponseOperations</code>"], "to": ["c_chat_schemas", "c_chat_utils_messages", "c_chat_utils_replies", "c_chat_utils_task_operations", "c_chat_utils_tool_operations", "o_llm"]}, {"id": "c_chat_utils_datetime_utils", "t": "utils.datetime_utils", "p": "features/chat/utils/datetime_utils.py", "s": "8 บรรทัด", "i": ["format_thai_datetime", "<code>format_thai_datetime</code>"], "to": ["o_kernel"]}, {"id": "c_chat_utils_employee_display", "t": "utils.employee_display", "p": "features/chat/utils/employee_display.py", "s": "43 บรรทัด", "i": ["ชื่อคนสำหรับคำตอบจาก id", "<code>task_employee_labels</code>"], "to": ["o_employees"]}, {"id": "c_chat_utils_messages", "t": "utils.messages", "p": "features/chat/utils/messages.py", "s": "437 บรรทัด", "i": ["จัด message, transcript, runnable config (MessageOperations)", "<code>MessageOperations</code>"], "to": ["c_chat_utils_metadata", "o_llm"]}, {"id": "c_chat_utils_metadata", "t": "utils.metadata", "p": "features/chat/utils/metadata.py", "s": "342 บรรทัด", "i": ["normalize metadata + ตัดเป็นรูปสาธารณะของ /chat", "<code>MetadataOperations</code>"], "to": ["c_chat_schemas", "c_chat_utils_personal_tasks", "c_chat_utils_project_operations", "c_chat_utils_review_sessions", "c_chat_utils_task_operations", "o_meeting"]}, {"id": "c_chat_utils_node_metadata", "t": "utils.node_metadata", "p": "features/chat/utils/node_metadata.py", "s": "448 บรรทัด", "i": ["metadata ระดับ node + tool message helpers", "<code>NodeMetadataOperations</code>"], "to": ["c_chat_schemas", "c_chat_utils_messages", "c_chat_utils_metadata", "c_chat_utils_replies", "c_chat_utils_review_sessions", "c_chat_utils_task_command", "o_llm", "o_meeting"]}, {"id": "c_chat_utils_personal_tasks", "t": "utils.personal_tasks", "p": "features/chat/utils/personal_tasks.py", "s": "873 บรรทัด", "i": ["งานส่วนตัว / ประเภทงาน (flag) และ PersonalTaskOperations", "<code>ProjectLookupFailed</code>, <code>personal_tasks_enabled</code>, <code>task_type_by_project_enabled</code>, <code>picked_person</code>, <code>PersonalTaskOperations</code>, <code>query_task_type</code> +5"], "to": ["c_chat_schemas", "c_chat_utils_messages", "c_chat_utils_project_operations", "o_kernel"]}, {"id": "c_chat_utils_project_operations", "t": "utils.project_operations", "p": "features/chat/utils/project_operations.py", "s": "1,304 บรรทัด", "i": ["ตรวจโปรเจกต์ของงาน, คำถาม project_resolution, project_optional (1.3k)", "<code>general_project_search_enabled</code>, <code>general_task_enabled</code>, <code>project_optional</code>, <code>ProjectContextOperations</code>"], "to": ["c_chat_context", "c_chat_schemas", "c_chat_tools", "c_chat_utils_employee_display", "c_chat_utils_messages", "c_chat_utils_personal_tasks", "c_chat_utils_task_operations", "o_kernel", "o_llm"], "tags": [["utils → tools (ย้อนชั้น)", "warn"]]}, {"id": "c_chat_utils_replies", "t": "utils.replies", "p": "features/chat/utils/replies.py", "s": "1,056 บรรทัด", "i": ["ข้อความยืนยัน/ตอบกลับ, ล้างคำตอบ, follow-up (1.1k)", "<code>task_type_by_project_enabled</code>, <code>has_send_prompt</code>, <code>ConfirmationOperations</code>, <code>ReplyOperations</code>"], "to": ["c_chat_utils_datetime_utils", "c_chat_utils_employee_display", "c_chat_utils_messages", "c_chat_utils_personal_tasks", "c_chat_utils_project_operations", "c_chat_utils_task_operations", "c_chat_utils_task_query_results"]}, {"id": "c_chat_utils_review_sessions", "t": "utils.review_sessions", "p": "features/chat/utils/review_sessions.py", "s": "260 บรรทัด", "i": ["review จากประชุม/กลุ่ม: _review_sessions, _parked_batch", "<code>is_review_entry</code>, <code>entry_session_id</code>, <code>waiting_tasks</code>, <code>ReviewSessionOperations</code>"], "to": ["c_chat_utils_task_command"]}, {"id": "c_chat_utils_task_command", "t": "utils.task_command", "p": "features/chat/utils/task_command.py", "s": "202 บรรทัด", "i": ["ฝั่ง chat ของ task command API: flag + payload ไป /api/tasks/ai/*", "<code>task_command_api_enabled</code>, <code>TaskCommandOperations</code>"], "to": ["c_chat_schemas", "c_chat_utils_task_operations", "o_kernel"]}, {"id": "c_chat_utils_task_operations", "t": "utils.task_operations", "p": "features/chat/utils/task_operations/__init__.py", "s": "66 บรรทัด", "i": ["facade ของ task_operations/"], "to": ["c_chat_utils_task_operations_contexts", "c_chat_utils_task_operations_creation", "c_chat_utils_task_operations_edit", "c_chat_utils_task_operations_payloads", "c_chat_utils_task_operations_query"], "tags": [["__init__ / facade", ""]]}, {"id": "c_chat_utils_task_operations_contexts", "t": "utils.task_operations.contexts", "p": "features/chat/utils/task_operations/contexts.py", "s": "51 บรรทัด", "i": ["ใครเป็น actor, context ของ task query", "<code>ActorContextOperations</code>, <code>TaskQueryContextOperations</code>"], "to": ["c_chat_context"]}, {"id": "c_chat_utils_task_operations_creation", "t": "utils.task_operations.creation", "p": "features/chat/utils/task_operations/creation.py", "s": "58 บรรทัด", "i": ["payload ผลของ create_task", "<code>TaskCreationOperations</code>"], "to": ["c_chat_utils_task_operations_edit", "c_chat_utils_task_operations_payloads"]}, {"id": "c_chat_utils_task_operations_edit", "t": "utils.task_operations.edit", "p": "features/chat/utils/task_operations/edit.py", "s": "1,256 บรรทัด", "i": ["flow แก้งาน: ตรวจสถานะ, ผู้รับ, ซ่อม employee id, guard hand-off/โน้ต (1.3k)", "<code>candidate_employee_id_from_resolution</code>, <code>resolve_employee_id_from_raw_name</code>, <code>assignee_employee_refs_from_detail_payload</code>, <code>normalize_assignee_raw</code>, <code>recent_user_texts</code>, <code>latest_user_text</code> +1"], "to": ["c_chat_context", "c_chat_prompt", "c_chat_schemas", "c_chat_utils_messages", "c_chat_utils_metadata", "c_chat_utils_project_operations", "c_chat_utils_task_operations_contexts", "c_chat_utils_task_operations_payloads", "c_chat_utils_task_operations_query", "o_employees", "o_kernel", "o_llm"]}, {"id": "c_chat_utils_task_operations_payloads", "t": "utils.task_operations.payloads", "p": "features/chat/utils/task_operations/payloads.py", "s": "706 บรรทัด", "i": ["จัด payload งาน, mask/restore task code, วันที่, จับคู่ตัวตน", "<code>mentions_date</code>, <code>TaskPayloadOperations</code>"], "to": ["c_chat_schemas", "c_chat_utils_project_operations", "c_chat_utils_task_operations_contexts"]}, {"id": "c_chat_utils_task_operations_query", "t": "utils.task_operations.query", "p": "features/chat/utils/task_operations/query.py", "s": "265 บรรทัด", "i": ["metadata ของ chat_task_query + ถามเลือกคน", "<code>TaskQueryOperations</code>"], "to": ["c_chat_schemas", "c_chat_utils_messages", "c_chat_utils_metadata", "c_chat_utils_replies"]}, {"id": "c_chat_utils_task_query_results", "t": "utils.task_query_results", "p": "features/chat/utils/task_query_results.py", "s": "391 บรรทัด", "i": ["แปลงผลค้นงานเป็นข้อความไทยแบบ deterministic", "<code>TaskQueryResultOperations</code>"], "to": ["c_chat_schemas", "c_chat_utils_datetime_utils", "c_chat_utils_employee_display", "c_chat_utils_project_operations"]}, {"id": "c_chat_utils_tool_operations", "t": "utils.tool_operations", "p": "features/chat/utils/tool_operations.py", "s": "253 บรรทัด", "i": ["normalize tool call + serialize ผล", "<code>ToolOperations</code>"], "to": ["c_chat_schemas", "c_chat_utils_personal_tasks", "o_kernel"]}, {"id": "c_chat_utils_workflow_assets", "t": "utils.workflow_assets", "p": "features/chat/utils/workflow_assets.py", "s": "144 บรรทัด", "i": ["วาด graph เป็นรูป/mermaid", "<code>WorkflowAssetOperations</code>"], "to": ["c_chat_tools"], "tags": [["utils → tools (ย้อนชั้น)", "warn"]]}]}, {"h": "นอก chat", "sub": "feature อื่น, backend client, kernel", "cards": [{"id": "o_employees", "t": "features/employees", "c": "--ai", "i": ["คน, ขอบเขตมอบงาน, ผังองค์กร"]}, {"id": "o_search", "t": "task_search · project_search", "c": "--ai", "i": ["ค้นงาน/โปรเจกต์ใน DB"]}, {"id": "o_meeting", "t": "features/meeting", "c": "--ai", "i": ["7 meeting tool, prompt, schema"]}, {"id": "o_slides", "t": "features/slides", "c": "--ai", "i": ["slide agent, publish"]}, {"id": "o_jobs", "t": "features/jobs", "c": "--ai", "i": ["job record + progress"]}, {"id": "o_botcfg", "t": "features/bot_config", "c": "--ai", "i": ["capability + สิทธิ์ของ turn"]}, {"id": "o_history", "t": "features/history", "c": "--ai", "i": ["Redis history"]}, {"id": "o_speech", "t": "features/speech", "c": "--ai", "i": ["schema งานจากเสียง, employee resolver"]}, {"id": "o_backend", "t": "backend/ clients", "c": "--be", "i": ["task_command, task_query, project_*, store_file, file_rag_search, ocr_interrupt, jobs_recent, slide_query, ball_history, http"]}, {"id": "o_llm", "t": "llm/", "c": "--ext", "i": ["models (router), usage, langfuse, content"]}, {"id": "o_kernel", "t": "config · core · db", "c": "--store", "i": ["Settings, time/paths/environment, DB engine"]}]}]},/*END_CHAT_TAB*/
+{ key:"be", name:"Backend · todo-list-api", color:"--be",
+  sum:"NestJS 11 + Prisma + Bull · src/ · prefix /api (web: /api/v1) · 251 route · เจ้าของ schema ทั้งหมด · guard: InternalTokenGuard (INTERNAL_API_TOKEN), AiCallbackTokenGuard (AI_CALLBACK_INTERNAL_TOKEN), WebJwtAuthGuard, Zoom HMAC, Graph validation",
+  lanes:[
+  { h:"ทางเข้า", sub:"ผู้เรียก + guard", cards:[
+    {id:"e_hook", t:"Webhook (Hook)", c:"--hook", i:["InternalTokenGuard","/api/line/inputs*, /internal/line/*, registration, otp, consent, employee, tasks/query|acknowledge"], to:["m_input","m_id","m_task","m_group","m_notify","m_aigw","m_logs"]},
+    {id:"e_ai", t:"AI service", c:"--ai", i:["AiCallbackTokenGuard: /tasks/ai/*, /ocr/*, /ai/jobs/*, callbacks, /slides, /short-links","InternalTokenGuard: /calendar/*, /line/projects/*, /tasks/query, /line-groups/*, /v1/internal/*"], to:["m_task","m_review","m_ocr","m_jobs","m_voice","m_meet","m_slides","m_cal","m_project","m_group","m_perm"]},
+    {id:"e_web", t:"Frontend", c:"--fe", i:["WebJwtAuthGuard + permission-request.ts","/api/v1/dashboard/*, /v1/auth/*, /v1/profile, /v1/projects"], to:["m_dash","m_auth"]},
+    {id:"e_prov", t:"Zoom · MS Graph · Google", c:"--ext", i:["/zoom/webhook/recording (HMAC)","/microsoft-teams/webhook/* (validation)","/google-meet/webhook (log เท่านั้น)"], to:["m_zoom","m_teams"]},
+    {id:"e_cron", t:"Cron + Bull worker", i:["@Cron ใน 11 service","14 คิว Bull บน Redis"], to:["m_group","m_review","m_ocr","m_zoom","m_teams","m_id","m_notify","m_dash","m_auth"]},
+    {id:"e_pub", t:"public", i:["/api/s/:token short link redirect","/api/invite/resolve (throttle 10/min)","GET /api health"], to:["m_slides","m_id"]},
+    {id:"e_noguard", t:"ไม่มี guard", i:["/api/line/chat, /api/ai-gateway/transcribe","/api/line-message/{task-*,daily-*}","/api/mock/ai/queue-status"], to:["m_legacy"], tags:[["legacy","bad"]]}
+  ]},
+  { h:"ส่วนหลัก · modules", sub:"src/<module>/ · controller + service + processor", main:true, cards:[
+    {id:"m_input", t:"line-input", p:"src/line-input/", s:"32 · 5.3k", i:["รับข้อความ/ไฟล์จาก Hook (202), media-preparation","คิว: line-candidate-batch, line-ai-dispatch, line-audio-routing, line-document-process, line-media-ready-callback, line-input-result-callback","document-converter → PDF, line-chat-history, processing-status"], to:["m_aigw","m_voice","sh_gcs","sh_hook","s_bull","s_pg"]},
+    {id:"m_aigw", t:"ai-gateway", p:"src/ai-gateway/", s:"10 · 1.5k", i:["<code>ai-gateway.service</code> client ไป AI (Bearer)","cost tracker, rate limiter, cache, usage-by-model","hook-ai-usage: /internal/ai/usage"], to:["x_ai","s_pg"]},
+    {id:"m_task", t:"task", p:"src/task/", s:"15 · 13k", i:["<code>task.service</code> สร้าง/แก้งานจาก AI, ball, history","task-code, completion-evidence, semantic-search","คิว task-description-embedding → DeepInfra","daily/overdue reminder, task-command-notification","task-reminder cron ถูก comment"], to:["m_notify","sh_deepinfra","s_pg","s_bull"]},
+    {id:"m_review", t:"task-review + chat", p:"src/task-review/, src/chat/", s:"13 · 4.0k", i:["inbox, source settings (autoApproveOnExpiry)","คิว task-review-expiry + cron กู้ทุก 5 นาที → auto-approval","chat/ai-task-session.controller: /tasks/ai/sessions","chat/line-chat (legacy /line/chat)"], to:["m_task","m_notify","sh_hook","s_bull","s_pg"]},
+    {id:"m_project", t:"project", p:"src/project/", s:"8 · 2.9k", i:["LINE project API (/line/projects/*)","web mapper, คิว project-embedding"], to:["sh_deepinfra","s_pg","s_bull"]},
+    {id:"m_cal", t:"google-calendar", p:"src/google-calendar/", s:"13 · 6.3k", i:["/calendar/* free-busy, slots, meetings query/detail/create/update/cancel","google-calendar.client"], to:["x_gcal","s_pg"]},
+    {id:"m_meet", t:"common/meeting", p:"src/common/meeting/", s:"8 · 1.9k", i:["meeting-ai-callback (ผล /multi-channel)","MoM document + PDF","meeting-task-review-notify → inbox"], to:["m_review","sh_gcs","s_pg"]},
+    {id:"m_zoom", t:"zoom-webhook", p:"src/zoom-webhook/", s:"17 · 4.7k", i:["webhook HMAC, คิว zoom-recording","zoom-api.client, ai-payload → AI","users-sync cron 02:00, admin/test-upload"], to:["m_aigw","x_zoom","sh_gcs","s_bull","s_pg"]},
+    {id:"m_teams", t:"microsoft-teams", p:"src/microsoft-teams/", s:"14 · 4.9k", i:["webhook, คิว microsoft-teams-ingest","graph-api.client, subscription renew cron 6 ชม.","users-sync cron 02:15"], to:["m_aigw","x_graph","sh_gcs","s_bull","s_pg"]},
+    {id:"m_voice", t:"voice", p:"src/voice/", s:"10 · 3.0k", i:["voice-ai-callback (/line/voice/callback/ai/*)","คิว line-voice-ai (legacy), converter"], to:["m_aigw","m_review","sh_hook","s_bull","s_pg"]},
+    {id:"m_ocr", t:"ocr", p:"src/ocr/", s:"11 · 2.3k", i:["ocr-ai.controller: store_file, file_rag_search, interrupt","คิว ocr-process + sweep cron ทุกนาที","gemini-ocr.client → embeddings"], to:["x_gocr","sh_deepinfra","sh_gcs","s_bull","s_pg"]},
+    {id:"m_group", t:"line-group", p:"src/line-group/", s:"7 · 1.3k", i:["cron 00:06/06:06/16:06 + checker ทุก 30 นาที","run service → AI, poll ai_line_group_run_logs","line-group-task-review-notify"], to:["m_aigw","m_review","s_pg"]},
+    {id:"m_jobs", t:"ai-jobs", p:"src/ai-jobs/", s:"7 · 0.7k", i:["/ai/jobs/events → คิว ai-job-events → Hook push","/ai/jobs/recent, slide usage"], to:["sh_hook","s_bull","s_pg"]},
+    {id:"m_slides", t:"slides + short-links", p:"src/slides/, src/short-links/", s:"6 · 0.8k", i:["metadata สไลด์, query","short link + redirect /s/:token"], to:["s_pg"]},
+    {id:"m_id", t:"ตัวตน + ลงทะเบียน", p:"src/employee/, registration/, otp/, invite/, consent/", s:"19 · 7.3k", i:["employee command API ให้ Hook, internal-users","OTP (ThaiBulkSMS), invite, consent","employee-retention cron 03:00"], to:["x_sms","s_pg"]},
+    {id:"m_auth", t:"auth (web)", p:"src/auth/, common/auth/", s:"29 · 3.0k", i:["login เบอร์/อีเมล, LINE OAuth, password reset, profile","WebJwtAuthGuard + revocation cron รายชั่วโมง"], to:["m_perm","x_line","s_pg"]},
+    {id:"m_perm", t:"common/permissions", p:"src/common/permissions/", s:"10 · 1.9k", i:["permission-catalog.ts (14 key), policy.ts permits()","role-scope.ts ceiling, permission-request.ts route→key","/v1/internal/employees/:id/authorization"], to:["s_pg"]},
+    {id:"m_notify", t:"notification engine", p:"src/common/notification-{config,delivery,scheduler}/, line-notifications/", s:"13 · 1.4k", i:["NotificationMasterConfig, scheduler ต่อ BU","delivery policy: quiet hours, daily limit, held","line-notifications: client ไป Hook"], to:["sh_hook","s_pg"]},
+    {id:"m_dash", t:"dashboard", p:"src/dashboard/", s:"76 · 15.3k", i:["overview, projects, workstreams, tasks/inbox, people, departments","organization (+Excel import), meetings, performance (snapshot cron)","users, matching, roles (legacy), permission-roles, token quota","audit, login-logs, notifications, dropdown, commands, workspaces"], to:["m_perm","m_notify","s_pg"]},
+    {id:"m_logs", t:"logs", p:"src/api-request-logs/, api-outbound-logs/, message-logs/, common/audit/", s:"14 · 1.5k", i:["api_request_logs, api_outbound_logs","message_logs ingest จาก Hook, audit"], to:["s_pg"]},
+    {id:"m_legacy", t:"legacy / stub", p:"src/line-message/, mock-ai/, google-meet-webhook/, common/s3/", s:"19 · 2.0k", i:["line-message builders (ไม่มี guard, ไม่มีใครเรียก)","mock-ai, google-meet stub, S3Service ไม่มีใคร import"], tags:[["ลบได้","bad"]]}
+  ]},
+  { h:"ส่วนกลาง · common/ + infra", cards:[
+    {id:"sh_prisma", t:"prisma/", p:"src/prisma/ · prisma/schema.prisma", i:["PrismaService · schema เดียว + migrations"], to:["s_pg"]},
+    {id:"sh_guard", t:"common/guards", p:"src/common/guards/", i:["InternalTokenGuard, AiCallbackTokenGuard (header x-internal-token เดียวกัน คนละค่า)"]},
+    {id:"sh_hook", t:"Hook client", p:"LINE_HANDLER_API_URL · /internal/line/*", i:["input-results, task-review-results, task-command-notifications, daily-*, job-events, media-ready …"], to:["x_hook"]},
+    {id:"sh_gcs", t:"common/gcs + media", p:"src/common/gcs/, common/media/", i:["bucket เดียว GCS_BUCKET_NAME, signed URL"], to:["s_gcs"]},
+    {id:"sh_deepinfra", t:"common/deepinfra", p:"src/common/deepinfra/", i:["embeddings bge-m3 ของ task, project, OCR"], to:["x_di"]},
+    {id:"sh_cfg", t:"config/ + web-api", p:"src/config/, common/web-api/, common/source-context/", i:["secrets-loader AWS SM (ชื่อ -dev hardcode)","WebApiV1 interceptor/filter, source context"], to:["x_aws"]}
+  ]},
+  { h:"ที่เก็บ / ภายนอก", cards:[
+    {id:"s_pg", t:"PostgreSQL ai_skr", db:true, c:"--store", i:["org/auth, permission roles, tasks (+assignment, event, source, evidence, reminder), review sessions/inbox, LINE inputs/voice, LINE groups, meetings, OCR, AiJob/usage/quota, notification config/delivery, projects, short links, slides, consent, logs"]},
+    {id:"s_bull", t:"Redis · Bull", db:true, c:"--store", i:["14 คิว (ไม่มี cache อื่น, throttle อยู่ใน memory)"]},
+    {id:"s_gcs", t:"GCS bucket", db:true, c:"--store", i:["line-inputs/, voice-messages/, ocr-inputs/, line-groups/, meetings/…, dashboard/{bu}/…"]},
+    {id:"x_ai", t:"AI service", c:"--ai", i:["Bearer AI_SERVICE_BEARER_TOKEN: /chat, /chat/history, /multi-channel, /line-group-summary/runs, /api/message/persona"]},
+    {id:"x_hook", t:"Webhook", c:"--hook", i:["/internal/line/* (LINE_HANDLER_API_TOKEN)"]},
+    {id:"x_gcal", t:"Google Calendar v3", c:"--ext", i:["service account"]},
+    {id:"x_zoom", t:"Zoom API", c:"--ext", i:["server-to-server OAuth"]},
+    {id:"x_graph", t:"MS Graph", c:"--ext", i:["client credentials"]},
+    {id:"x_gocr", t:"Gemini OCR (Vertex)", c:"--ext", i:["@google/genai"]},
+    {id:"x_di", t:"DeepInfra", c:"--ext", i:["bge-m3"]},
+    {id:"x_sms", t:"ThaiBulkSMS", c:"--ext", i:["OTP"]},
+    {id:"x_line", t:"LINE Login / profile", c:"--ext", i:["verify id token, profile"]},
+    {id:"x_aws", t:"AWS Secrets Manager", c:"--ext", i:["todo-api-secret-*"]}
+  ]}
+  ]},
+
+{ key:"bemap", name:"Backend · ภาพรวมแบบกลุ่ม", color:"--be",
+  sum:"ทางเข้า (ผู้เรียก + guard) → modules → ส่วนกลาง → PostgreSQL (90 ตาราง Prisma แยก 13 กลุ่มตามโดเมน) · Redis (Bull 14 คิว แต่ละคิวบอก module ที่ใช้) · GCS (6 prefix) → ระบบภายนอก · เส้นจาก module ไปตาราง/คิว/prefix ที่ module นั้นใช้ (ทุก module เข้าถึง DB ผ่าน prisma/ ไม่ได้วาดเส้นนั้นซ้ำ) · ตาราง message_logs, line_groups, line_group_message_logs Webhook เขียนตรงด้วย, ai_line_group_run_logs AI เขียน",
+  groups:[
+   {id:"IN", t:"ทางเข้า · ผู้เรียก + guard", w:210, nodes:[
+     {id:"e_hook", t:"Webhook", c:"--hook", i:["InternalTokenGuard (INTERNAL_API_TOKEN)","/api/line/inputs*, /internal/*, registration, otp, consent, employee, tasks"]},
+     {id:"e_aicb", t:"AI · callback token", c:"--ai", i:["AiCallbackTokenGuard","/tasks/ai/*, /ocr/*, /ai/jobs/*, callbacks, /slides, /short-links"]},
+     {id:"e_aiint", t:"AI · INT token", c:"--ai", i:["InternalTokenGuard","/calendar/*, /line/projects/*, /tasks/query, /line-groups/*, /v1/internal/*"]},
+     {id:"e_web", t:"Frontend", c:"--fe", i:["WebJwtAuthGuard + permission-request.ts","/api/v1/*"]},
+     {id:"e_prov", t:"Zoom · MS Graph · Google", c:"--ext", i:["Zoom HMAC, Graph validation, Google Meet (log)"]},
+     {id:"e_cron", t:"Cron + Bull worker", i:["@Cron 11 service + 14 คิว"]},
+     {id:"e_pub", t:"public", i:["/api/s/:token, /api/invite/resolve, GET /api"]},
+     {id:"e_noguard", t:"ไม่มี guard", i:["/api/line/chat, /ai-gateway/transcribe, /line-message/*, /mock/ai"], tags:[["legacy","bad"]]}]},
+   {id:"MOD", t:"modules · src/<module>/", w:220, nodes:[
+     {id:"m_input", t:"line-input", s:"32 · 5.3k", p:"src/line-input/", i:["รับข้อความ/ไฟล์จาก Hook (202), media-preparation, แปลง PDF, dispatch ไป AI"]},
+     {id:"m_aigw", t:"ai-gateway", s:"10 · 1.5k", p:"src/ai-gateway/", i:["client ไป AI (Bearer), cost, rate limit, cache, hook usage"]},
+     {id:"m_voice", t:"voice", s:"10 · 3.0k", p:"src/voice/", i:["voice callback จาก AI, legacy voice queue"]},
+     {id:"m_task", t:"task", s:"15 · 13k", p:"src/task/", i:["สร้าง/แก้งานจาก AI, ball, history, evidence, embedding, reminder"]},
+     {id:"m_review", t:"task-review + chat", s:"13 · 4.0k", p:"src/task-review/, src/chat/", i:["inbox, sessions, หมดเวลา → auto-approve"]},
+     {id:"m_project", t:"project", s:"8 · 2.9k", p:"src/project/", i:["LINE project API, embedding"]},
+     {id:"m_cal", t:"google-calendar", s:"13 · 6.3k", p:"src/google-calendar/", i:["/calendar/* free-busy, slots, meetings"]},
+     {id:"m_meet", t:"common/meeting", s:"8 · 1.9k", p:"src/common/meeting/", i:["callback ประชุมจาก AI, MoM + PDF, ส่ง review"]},
+     {id:"m_zoom", t:"zoom-webhook", s:"17 · 4.7k", p:"src/zoom-webhook/", i:["webhook, ดึง recording, users-sync 02:00"]},
+     {id:"m_teams", t:"microsoft-teams", s:"14 · 4.9k", p:"src/microsoft-teams/", i:["webhook, ingest, subscription renew, users-sync"]},
+     {id:"m_ocr", t:"ocr", s:"11 · 2.3k", p:"src/ocr/", i:["store_file, file_rag_search, interrupt, sweep ทุกนาที"]},
+     {id:"m_group", t:"line-group", s:"7 · 1.3k", p:"src/line-group/", i:["cron 00:06/06:06/16:06 → AI, poll run logs, review"]},
+     {id:"m_jobs", t:"ai-jobs", s:"7 · 0.7k", p:"src/ai-jobs/", i:["job events → Hook push, slide usage"]},
+     {id:"m_slides", t:"slides + short-links", s:"6 · 0.8k", p:"src/slides/, short-links/", i:["metadata สไลด์, short link"]},
+     {id:"m_id", t:"ตัวตน + ลงทะเบียน", s:"19 · 7.3k", p:"src/employee/, registration/, otp/, invite/, consent/", i:["employee command API, OTP, consent, retention 03:00"]},
+     {id:"m_auth", t:"auth (web)", s:"29 · 3.0k", p:"src/auth/, common/auth/", i:["login, LINE OAuth, JWT + revocation"]},
+     {id:"m_perm", t:"common/permissions", s:"10 · 1.9k", p:"src/common/permissions/", i:["catalog 14 key, permits(), role ceiling, authorization API"]},
+     {id:"m_notify", t:"notification engine", s:"13 · 1.4k", p:"src/common/notification-*/", i:["master config, scheduler ต่อ BU, delivery policy"]},
+     {id:"m_dash", t:"dashboard", s:"76 · 15.3k", p:"src/dashboard/", i:["ทุกหน้าของเว็บ: overview → token quota → audit"]},
+     {id:"m_logs", t:"logs", s:"14 · 1.5k", p:"src/api-*-logs/, message-logs/, common/audit/", i:["request/outbound log, message log, audit"]},
+     {id:"m_legacy", t:"legacy / stub", s:"19 · 2.0k", p:"src/line-message/, mock-ai/, google-meet-webhook/, common/s3/", i:["ไม่มีใครเรียก ลบได้"], tags:[["legacy","bad"]]}]},
+   {id:"SH", t:"ส่วนกลาง · common/ + infra", w:210, nodes:[
+     {id:"sh_prisma", t:"prisma/", p:"src/prisma/ · prisma/schema.prisma", i:["PrismaService, schema เดียว 90 model + migrations"]},
+     {id:"sh_hook", t:"Hook client", p:"LINE_HANDLER_API_URL", i:["/internal/line/* ทุกชนิด"]},
+     {id:"sh_gcs", t:"common/gcs + media", p:"src/common/gcs/, media/", i:["bucket เดียว, signed URL"]},
+     {id:"sh_di", t:"common/deepinfra", p:"src/common/deepinfra/", i:["embedding bge-m3"]},
+     {id:"sh_cfg", t:"config/ + web-api", p:"src/config/, common/web-api/", i:["secrets-loader AWS SM, WebApiV1"]}]},
+   {id:"PG", t:"PostgreSQL ai_skr · 90 ตาราง", w:260, data:true, nodes:[
+     {id:"T_org", t:"องค์กร + ตัวตน", cyl:true, p:"15 ตาราง", i:["business_units · departments · organization_positions · employees · employee_organization_positions · invite_tokens · registration_sessions · consent_purposes · consent_records · admin_command_resolutions · auth_login_logs · auth_otp_challenges · auth_jwt_revocations · organization_import_batches · user_import_batches"]},
+     {id:"T_perm", t:"สิทธิ์", cyl:true, p:"8 ตาราง", i:["permission_roles · permission_role_rules · permission_rule_departments · permission_rule_projects · employee_permission_profiles · permission_role_assignments · permission_role_events · employee_permission (LEGACY)"]},
+     {id:"T_task", t:"งาน", cyl:true, p:"9 ตาราง", i:["tasks · task_assignments · task_events · task_sources · task_source_media · task_completion_evidences · task_reminders · task_code_sequences · task_query_tokens"]},
+     {id:"T_review", t:"review sessions", cyl:true, p:"6 ตาราง", i:["task_review_sessions · line_chat_task_sessions · line_task_sessions · line_task_review_inbox · task_review_source_settings · line_chat_pending_ai_notices"]},
+     {id:"T_input", t:"LINE input + เสียง + message log", cyl:true, p:"5 ตาราง", i:["line_input_batches · line_input_batch_items · line_voice_messages · line_voice_chunks · message_logs (Webhook เขียนด้วย)"]},
+     {id:"T_group", t:"LINE group", cyl:true, p:"6 ตาราง", i:["line_groups · line_group_message_logs (Webhook เขียน) · line_group_summary_batches · line_group_summary_notifications · ai_line_group_run_logs · _token (AI เขียน)"]},
+     {id:"T_proj", t:"โปรเจกต์", cyl:true, p:"3 ตาราง", i:["projects · project_departments · project_members"]},
+     {id:"T_meet", t:"ประชุม + ปฏิทิน", cyl:true, p:"13 ตาราง", i:["meetings · meeting_occurrences · meeting_occurrence_projects · meeting_participants · meeting_artifacts · meeting_artifact_chunks · transcript_segments · meeting_documents · calendar_meeting_creations · calendar_meeting_updates · provider_connections · employee_provider_identities · inbound_provider_events"]},
+     {id:"T_ocr", t:"OCR", cyl:true, p:"2 ตาราง", i:["ocr_documents · ocr_document_chunks (embedding)"]},
+     {id:"T_usage", t:"AI job + usage + quota", cyl:true, p:"10 ตาราง", i:["ai_jobs · ai_usage_logs · voice_usage_logs · token_quota_policies · token_role_ai_quota_configs · token_quota_accounts · token_quota_requests · token_control_policy_versions · package_masters · business_unit_subscriptions"]},
+     {id:"T_notify", t:"แจ้งเตือน", cyl:true, p:"3 ตาราง", i:["notification_master_configs · notification_config_revisions · notification_deliveries"]},
+     {id:"T_slide", t:"สไลด์ + ลิงก์", cyl:true, p:"2 ตาราง", i:["slide_generations · short_links"]},
+     {id:"T_report", t:"รายงาน + log", cyl:true, p:"8 ตาราง", i:["employee_performances · performance_snapshots · performance_snapshot_department_metrics · performance_snapshot_employee_metrics · report_exports · api_request_logs · api_outbound_logs · business_audit_events"]}]},
+   {id:"RD", t:"Redis · Bull 14 คิว", w:240, data:true, nodes:[
+     {id:"Q_cand", t:"line-candidate-batch", cyl:true, p:"line-input", i:["รวมข้อความติดกัน (debounce)"]},
+     {id:"Q_disp", t:"line-ai-dispatch", cyl:true, p:"line-input", i:["เรียก AI /chat"]},
+     {id:"Q_audio", t:"line-audio-routing", cyl:true, p:"line-input", i:["เสียงสั้น → /chat, ยาว → /multi-channel"]},
+     {id:"Q_doc", t:"line-document-process", cyl:true, p:"line-input", i:["แปลงเอกสารเป็น PDF"]},
+     {id:"Q_media", t:"line-media-ready-callback", cyl:true, p:"line-input", i:["แจ้ง Hook ว่าไฟล์พร้อม"]},
+     {id:"Q_result", t:"line-input-result-callback", cyl:true, p:"line-input", i:["ส่งผล AI ให้ Hook (3 attempts)"]},
+     {id:"Q_voice", t:"line-voice-ai", cyl:true, p:"voice", i:["legacy voice"], tags:[["legacy","bad"]]},
+     {id:"Q_ocr", t:"ocr-process", cyl:true, p:"ocr", i:["Gemini OCR + embedding"]},
+     {id:"Q_rev", t:"task-review-expiry", cyl:true, p:"task-review", i:["delayed job ต่อ session"]},
+     {id:"Q_jobev", t:"ai-job-events", cyl:true, p:"ai-jobs", i:["job event → Hook push"]},
+     {id:"Q_etask", t:"task-description-embedding", cyl:true, p:"task", i:["embedding งาน"]},
+     {id:"Q_eproj", t:"project-embedding", cyl:true, p:"project", i:["embedding โปรเจกต์"]},
+     {id:"Q_zoom", t:"zoom-recording", cyl:true, p:"zoom-webhook", i:["ดึง recording + ส่ง AI"]},
+     {id:"Q_teams", t:"microsoft-teams-ingest", cyl:true, p:"microsoft-teams", i:["ดึง transcript + ส่ง AI"]}]},
+   {id:"GCSB", t:"GCS · bucket เดียว (GCS_BUCKET_NAME)", w:240, data:true, nodes:[
+     {id:"G_in", t:"line-inputs/", cyl:true, p:"{messageId}/original · converted · image", i:["ไฟล์/รูปจาก LINE"]},
+     {id:"G_voice", t:"voice-messages/", cyl:true, i:["ไฟล์เสียงจาก LINE"]},
+     {id:"G_ocr", t:"ocr-inputs/", cyl:true, i:["ไฟล์ที่ส่ง OCR"]},
+     {id:"G_group", t:"line-groups/", cyl:true, p:"{groupId}/{messageId}", i:["ไฟล์ในกลุ่ม LINE"]},
+     {id:"G_meet", t:"meetings/", cyl:true, p:"{BU}/zoom|ms/{occ}/audio · transcript", i:["recording, VTT, MoM"]},
+     {id:"G_dash", t:"dashboard/", cyl:true, p:"{BU}/imports · organization-imports · reports", i:["Excel import, รายงาน"]}]},
+   {id:"EXT", t:"ระบบภายนอก", w:200, nodes:[
+     {id:"X_ai", t:"AI service", c:"--ai", i:["Bearer: /chat, /chat/history, /multi-channel, /line-group-summary/runs, /persona"]},
+     {id:"X_hook", t:"Webhook", c:"--hook", i:["/internal/line/*"]},
+     {id:"X_gcal", t:"Google Calendar v3", c:"--ext", i:["service account"]},
+     {id:"X_zoom", t:"Zoom API", c:"--ext", i:["S2S OAuth"]},
+     {id:"X_graph", t:"MS Graph", c:"--ext", i:["client credentials"]},
+     {id:"X_gocr", t:"Gemini OCR (Vertex)", c:"--ext", i:["@google/genai"]},
+     {id:"X_di", t:"DeepInfra", c:"--ext", i:["bge-m3"]},
+     {id:"X_sms", t:"ThaiBulkSMS", c:"--ext", i:["OTP"]},
+     {id:"X_line", t:"LINE Login / profile", c:"--ext", i:["id token, profile"]},
+     {id:"X_aws", t:"AWS Secrets Manager", c:"--ext", i:["todo-api-secret-*"]}]}
+  ],
+  edges:[
+   ["e_hook","m_input"],["e_hook","m_id"],["e_hook","m_task"],["e_hook","m_group"],["e_hook","m_notify"],["e_hook","m_aigw"],["e_hook","m_logs"],
+   ["e_aicb","m_task"],["e_aicb","m_review"],["e_aicb","m_ocr"],["e_aicb","m_jobs"],["e_aicb","m_voice"],["e_aicb","m_meet"],["e_aicb","m_slides"],
+   ["e_aiint","m_cal"],["e_aiint","m_project"],["e_aiint","m_task"],["e_aiint","m_group"],["e_aiint","m_perm"],
+   ["e_web","m_dash"],["e_web","m_auth"],["e_prov","m_zoom"],["e_prov","m_teams"],
+   ["e_cron","m_group"],["e_cron","m_review"],["e_cron","m_ocr"],["e_cron","m_zoom"],["e_cron","m_teams"],["e_cron","m_id"],["e_cron","m_notify"],["e_cron","m_dash"],["e_cron","m_auth"],
+   ["e_pub","m_slides"],["e_pub","m_id"],["e_noguard","m_legacy"],
+   ["m_input","Q_cand"],["m_input","Q_disp"],["m_input","Q_audio"],["m_input","Q_doc"],["m_input","Q_media"],["m_input","Q_result"],["m_input","T_input"],["m_input","G_in"],["m_input","G_voice"],["m_input","m_aigw"],["m_input","sh_hook"],
+   ["m_aigw","T_usage"],["m_aigw","X_ai"],
+   ["m_voice","Q_voice"],["m_voice","T_input"],["m_voice","G_voice"],["m_voice","m_review"],["m_voice","sh_hook"],
+   ["m_task","T_task"],["m_task","Q_etask"],["m_task","sh_di"],["m_task","m_notify"],
+   ["m_review","T_review"],["m_review","Q_rev"],["m_review","m_task"],["m_review","m_notify"],["m_review","sh_hook"],
+   ["m_project","T_proj"],["m_project","Q_eproj"],["m_project","sh_di"],
+   ["m_cal","T_meet"],["m_cal","X_gcal"],
+   ["m_meet","T_meet"],["m_meet","G_meet"],["m_meet","m_review"],
+   ["m_zoom","Q_zoom"],["m_zoom","T_meet"],["m_zoom","G_meet"],["m_zoom","X_zoom"],["m_zoom","m_aigw"],
+   ["m_teams","Q_teams"],["m_teams","T_meet"],["m_teams","G_meet"],["m_teams","X_graph"],["m_teams","m_aigw"],
+   ["m_ocr","Q_ocr"],["m_ocr","T_ocr"],["m_ocr","G_ocr"],["m_ocr","X_gocr"],["m_ocr","sh_di"],
+   ["m_group","T_group"],["m_group","G_group"],["m_group","m_aigw"],["m_group","m_review"],
+   ["m_jobs","Q_jobev"],["m_jobs","T_usage"],["m_jobs","sh_hook"],
+   ["m_slides","T_slide"],
+   ["m_id","T_org"],["m_id","X_sms"],
+   ["m_auth","T_org"],["m_auth","m_perm"],["m_auth","X_line"],
+   ["m_perm","T_perm"],
+   ["m_notify","T_notify"],["m_notify","sh_hook"],
+   ["m_dash","T_org"],["m_dash","T_perm"],["m_dash","T_task"],["m_dash","T_proj"],["m_dash","T_meet"],["m_dash","T_usage"],["m_dash","T_notify"],["m_dash","T_report"],["m_dash","G_dash"],["m_dash","m_perm"],
+   ["m_logs","T_report"],["m_logs","T_input"],
+   ["sh_prisma","PG"],["sh_gcs","GCSB"],["sh_hook","X_hook"],["sh_di","X_di"],["sh_cfg","X_aws"]
+  ],
+  lanes:[] },
+{ key:"hook", name:"Webhook · todo-list-webhook", color:"--hook",
+  sum:"NestJS 10 + Prisma + Bull · src/ · ไม่มี prefix · 25 route · ผู้เดียวที่ถือ LINE channel token และ reply/push ไป LINE · ตอบ LINE 200 ทันทีแล้วทำงานในคิว",
+  lanes:[
+  { h:"ทางเข้า", cards:[
+    {id:"e_line", t:"POST /webhook/line", c:"--ext", i:["LINE Platform, LineSignatureGuard","throttle 10/s, IP allowlist ถูก comment"], to:["h_entry"]},
+    {id:"e_be", t:"/internal/line/*", c:"--be", i:["Backend, InternalTokenGuard","ผล AI, review, notifications, media-ready, job-events"], to:["h_chat","h_task","h_media","h_jobs"]},
+    {id:"e_legacy", t:"route ที่ไม่มีใครเรียก", i:["chat-result, zoom/task-result, nlp/*, retry-files, webhook/line/verify","task-priority-reminder ไม่มี guard"], to:["h_task","h_nlp"], tags:[["legacy","bad"]]},
+    {id:"e_health", t:"GET /health", i:["ไม่มี auth"]}
+  ]},
+  { h:"ส่วนหลัก · modules/line + อื่น", sub:"src/modules/", main:true, cards:[
+    {id:"h_entry", t:"line (entry)", p:"modules/line/line.controller, line.service", s:"79 ไฟล์ทั้ง line/ · 15.8k", i:["แยก event: follow, unfollow, message, postback, join","resolve user (Backend by-uid), loading animation, gate ลงทะเบียน","command-parser / todo-command (คำสั่ง admin), message-builder, line-reply"], to:["h_proc","h_reg","h_media","h_group","h_chat","h_gw","h_client"]},
+    {id:"h_proc", t:"line/processing", p:"modules/line/processing/", s:"15 · 1.1k", i:["คิว line-hook-inbound, -conversation-batch (debounce), -image-set, -ai-dispatch, -ai-usage, -delivery","attachment-wait.policy, input-processing-status"], to:["h_chat","h_client","h_gw","s_redis"]},
+    {id:"h_chat", t:"line/chat", p:"modules/line/chat/", s:"8 · 2.9k", i:["line-chat.service → AI /chat (direct flag + ปุ่ม review)","line-chat-result.controller: input-results, chat-callback, task-session-expired"], to:["h_gw","h_client","h_task"]},
+    {id:"h_task", t:"line/task", p:"modules/line/task/", s:"13 · 3.2k", i:["task-command-notification, review Flex card","line-task.controller: daily-summary/deadline/overdue, escalation, priority reminder","task-query-parser, review-result"], to:["h_client","h_gw"]},
+    {id:"h_media", t:"voice · image · document · media · sticker", p:"modules/line/{voice,image,document,media,sticker}/", s:"12 · 2.1k", i:["ดาวน์โหลด content จาก LINE → multipart ให้ Backend","media-ready → ส่งต่อ AI, image set รวมรูป","voice-result (legacy)"], to:["h_client","h_gw","h_chat","h_proc"]},
+    {id:"h_group", t:"line/group", p:"modules/line/group/", s:"2 · 0.5k", i:["log ข้อความกลุ่ม + resolve mention","ไฟล์กลุ่ม → Backend /gcs/line-groups/upload","@bot ยังไม่ถึง AI (TODO)"], to:["h_gw","h_log","s_pg"], tags:[["mention TODO","warn"]]},
+    {id:"h_jobs", t:"line/jobs + notifications", p:"modules/line/{jobs,notifications,flex,zoom}/", s:"11 · 0.7k", i:["job-events → push %","project notifications, Flex builder","zoom/task-result (legacy)"], to:["h_client"]},
+    {id:"h_reg", t:"ลงทะเบียน / ตัวตน", p:"modules/{registration,employee,invite,business-unit,users-member,pdpa,help}/", s:"23 · 3.7k", i:["state machine OTP + consent","คำสั่ง admin: nickname, deactivate, bulk import","help, PDPA"], to:["h_gw","h_client"]},
+    {id:"h_nlp", t:"nlp", p:"modules/nlp/", s:"4 · 0.5k", i:["Jev classifier: รอไฟล์แนบหรือไม่"]},
+    {id:"h_log", t:"message-log", p:"modules/message-log/", s:"3 · 0.5k", i:["message_logs ขาเข้า/ขาออก"], to:["s_pg","h_gw"]}
+  ]},
+  { h:"ส่วนกลาง", cards:[
+    {id:"h_client", t:"line-client.service", p:"modules/line/line-client.service.ts", i:["reply, push, loading/start, profile, content, group summary","chunking, retry, 429"], to:["x_lineapi"]},
+    {id:"h_gw", t:"api-gateway", p:"modules/api-gateway/services/", s:"6 · 0.8k", i:["backend-api.service (x-internal-token, 10 s)","ai-api.service: POST /chat (60 s)"], to:["x_be","x_ai"]},
+    {id:"h_common", t:"common/ + config/ + prisma", p:"src/common/, src/config/, modules/prisma/", i:["guards: LineSignature, InternalToken","filters, interceptors, middleware, pipes","PrismaService"], to:["s_pg"]}
+  ]},
+  { h:"ที่เก็บ / ภายนอก", cards:[
+    {id:"s_pg", t:"PostgreSQL", db:true, c:"--store", i:["message_logs, line_groups, line_group_message_logs"]},
+    {id:"s_redis", t:"Redis · Bull", db:true, c:"--store", i:["6 คิว line-hook-*"]},
+    {id:"x_lineapi", t:"LINE Messaging API", c:"--ext", i:["api.line.me/v2/bot, api-data.line.me"]},
+    {id:"x_be", t:"Backend", c:"--be", i:["/api/line/inputs*, /api/internal/*, registration, otp, consent, employee, tasks"]},
+    {id:"x_ai", t:"AI", c:"--ai", i:["POST /chat (Bearer)"]}
+  ]}
+  ]},
+
+{ key:"hookmap", name:"Webhook · ภาพรวมแบบกลุ่ม", color:"--hook",
+  sum:"ทางเข้า → modules → ส่วนกลาง → PostgreSQL (3 ตาราง ที่อยู่ใน schema ของ Backend แต่ Webhook เขียนตรง) · Redis (Bull 6 คิว line-hook-*) → ระบบภายนอก · ไม่แตะ GCS เอง: ดาวน์โหลดจาก LINE แล้วส่ง bytes ให้ Backend เก็บ · ไม่มี cron: แจ้งเตือนทุกชนิด Backend เป็นคนสั่ง",
+  groups:[
+   {id:"IN", t:"ทางเข้า", w:210, nodes:[
+     {id:"e_line", t:"POST /webhook/line", c:"--ext", i:["LINE Platform · LineSignatureGuard · throttle 10/s"]},
+     {id:"e_be", t:"/internal/line/*", c:"--be", i:["Backend · InternalTokenGuard","ผล AI, review, แจ้งเตือน, media-ready, job-events"]},
+     {id:"e_legacy", t:"route ที่ไม่มีใครเรียก", i:["chat-result, zoom/task-result, nlp/*, retry-files, verify","task-priority-reminder ไม่มี guard"], tags:[["legacy","bad"]]},
+     {id:"e_health", t:"GET /health", i:["ไม่มี auth"]}]},
+   {id:"MOD", t:"modules · src/modules/", w:220, nodes:[
+     {id:"h_entry", t:"line (entry)", s:"79 ไฟล์ line/ · 15.8k", p:"line.controller, line.service", i:["แยก event, resolve user, loading, gate ลงทะเบียน, คำสั่ง admin"]},
+     {id:"h_proc", t:"line/processing", s:"15 · 1.1k", p:"modules/line/processing/", i:["ผู้ผลิต/ผู้รับของ 6 คิว, attachment-wait policy"]},
+     {id:"h_chat", t:"line/chat", s:"8 · 2.9k", p:"modules/line/chat/", i:["เรียก AI /chat (direct + ปุ่ม review), รับผลจาก Backend"]},
+     {id:"h_task", t:"line/task", s:"13 · 3.2k", p:"modules/line/task/", i:["render แจ้งเตือน, review Flex, query parser"]},
+     {id:"h_media", t:"voice · image · document · media · sticker", s:"12 · 2.1k", p:"modules/line/*", i:["ดาวน์โหลด content → Backend, media-ready → AI"]},
+     {id:"h_group", t:"line/group", s:"2 · 0.5k", p:"modules/line/group/", i:["log ข้อความกลุ่ม, resolve mention, ไฟล์กลุ่ม → Backend"], tags:[["@bot ยังไม่ถึง AI","warn"]]},
+     {id:"h_jobs", t:"line/jobs + notifications", s:"11 · 0.7k", p:"modules/line/{jobs,notifications,flex,zoom}/", i:["push % ของ job, แจ้งเตือนโปรเจกต์"]},
+     {id:"h_reg", t:"ลงทะเบียน / ตัวตน", s:"23 · 3.7k", p:"modules/{registration,employee,invite,business-unit,users-member,pdpa,help}/", i:["OTP + consent, คำสั่ง admin, help"]},
+     {id:"h_nlp", t:"nlp", s:"4 · 0.5k", p:"modules/nlp/", i:["Jev classifier: รอไฟล์แนบไหม"]},
+     {id:"h_log", t:"message-log", s:"3 · 0.5k", p:"modules/message-log/", i:["log ข้อความเข้า/ออก"]}]},
+   {id:"SH", t:"ส่วนกลาง", w:210, nodes:[
+     {id:"h_client", t:"line-client.service", p:"modules/line/line-client.service.ts", i:["reply, push, loading, profile, content, group summary · retry, 429"]},
+     {id:"h_gw", t:"api-gateway", s:"6 · 0.8k", p:"modules/api-gateway/services/", i:["backend-api (x-internal-token, 10 s), ai-api POST /chat (60 s)"]},
+     {id:"h_prisma", t:"prisma + common/", p:"modules/prisma/, src/common/, src/config/", i:["PrismaService, guards, filters, interceptors"]}]},
+   {id:"PG", t:"PostgreSQL · 3 ตาราง (schema ของ Backend)", w:250, data:true, nodes:[
+     {id:"T_msg", t:"message_logs", cyl:true, p:"เขียน", i:["ข้อความ 1:1 เข้า/ออก (Backend อ่าน/เขียนด้วย)"]},
+     {id:"T_grp", t:"line_groups", cyl:true, p:"เขียน", i:["กลุ่มที่บอทอยู่"]},
+     {id:"T_grpmsg", t:"line_group_message_logs", cyl:true, p:"เขียน", i:["ข้อความกลุ่ม + mention (Backend ส่งให้ AI สรุป)"]}]},
+   {id:"RD", t:"Redis · Bull 6 คิว", w:240, data:true, nodes:[
+     {id:"Q_in", t:"line-hook-inbound", cyl:true, i:["ทุก event หลังตอบ LINE 200"]},
+     {id:"Q_conv", t:"line-hook-conversation-batch", cyl:true, i:["debounce ข้อความติดกันต่อบทสนทนา"]},
+     {id:"Q_img", t:"line-hook-image-set", cyl:true, i:["รวมรูปหลายใบ"]},
+     {id:"Q_disp", t:"line-hook-ai-dispatch", cyl:true, i:["เรียก AI /chat (flag direct)"]},
+     {id:"Q_usage", t:"line-hook-ai-usage", cyl:true, i:["รายงาน usage ให้ Backend"]},
+     {id:"Q_deliv", t:"line-hook-delivery", cyl:true, i:["reply/push ไป LINE"]}]},
+   {id:"EXT", t:"ระบบภายนอก", w:210, nodes:[
+     {id:"X_line", t:"LINE Messaging API", c:"--ext", i:["api.line.me/v2/bot, api-data.line.me"]},
+     {id:"X_be", t:"Backend", c:"--be", i:["/api/line/inputs*, /api/internal/*, registration, otp, consent, employee, tasks","เก็บไฟล์ลง GCS แทน Webhook"]},
+     {id:"X_ai", t:"AI", c:"--ai", i:["POST /chat (Bearer)"]}]}
+  ],
+  edges:[
+   ["e_line","h_entry"],["e_be","h_chat"],["e_be","h_task"],["e_be","h_media"],["e_be","h_jobs"],["e_legacy","h_task"],["e_legacy","h_nlp"],
+   ["h_entry","Q_in"],["h_entry","h_reg"],["h_entry","h_media"],["h_entry","h_group"],["h_entry","h_nlp"],["h_entry","h_log"],["h_entry","h_client"],["h_entry","h_gw"],
+   ["h_proc","Q_in"],["h_proc","Q_conv"],["h_proc","Q_img"],["h_proc","Q_disp"],["h_proc","Q_usage"],["h_proc","Q_deliv"],["h_proc","h_chat"],["h_proc","h_client"],["h_proc","h_gw"],
+   ["h_media","Q_img"],["h_media","h_gw"],["h_media","h_chat"],
+   ["h_chat","h_gw"],["h_chat","h_client"],["h_chat","Q_deliv"],
+   ["h_task","h_client"],["h_task","h_gw"],["h_jobs","h_client"],["h_reg","h_gw"],["h_reg","h_client"],
+   ["h_group","T_grp"],["h_group","T_grpmsg"],["h_group","h_gw"],["h_log","T_msg"],
+   ["h_client","X_line"],["h_gw","X_be"],["h_gw","X_ai"],["h_prisma","PG"]
+  ],
+  lanes:[] },
+{ key:"fe", name:"Frontend · todo-list-front", color:"--fe",
+  sum:"Nuxt 4 SPA (ssr: false) + Vue 3 + Tailwind + reka-ui · ไม่มี BFF: browser เรียก Backend /api/v1 ตรง ด้วย JWT · ไม่เรียก AI",
+  lanes:[
+  { h:"ทางเข้า", cards:[
+    {id:"f_user", t:"Browser ผู้ใช้", c:"--ext", i:["Admin, ผู้บริหาร, ผู้ใช้ทั่วไป"], to:["f_mw","f_pages"]},
+    {id:"f_liff", t:"LINE LIFF", c:"--ext", i:["/share/liff เพิ่มเพื่อน/แชร์"], to:["f_pages"]}
+  ]},
+  { h:"ส่วนหลัก", sub:"app/", main:true, cards:[
+    {id:"f_pages", t:"pages", p:"app/pages/", s:"22 หน้า", i:["overview, projects, project-management, workstream, inbox","people, departments, meetings, performance","users, token, audit, login-logs, notifications","login, register, forgot-password, auth/line/callback, profile, share/liff"], to:["f_comp","f_api","f_comp2"]},
+    {id:"f_comp", t:"components", p:"app/components/{auth,charts,common,dashboard,layout,project}/", i:["AppSidebar, TopBar, dialogs, AppDatePicker, AppPager, charts"]},
+    {id:"f_comp2", t:"composables + utils", p:"app/composables/, app/utils/, app/data/", i:["useBackend, useAuthApi, useDashboardApi, useToast, useOrganizationTree, useReviewMode"], to:["f_api"]},
+    {id:"f_mw", t:"middleware + สิทธิ์", p:"app/middleware/auth.global.ts, shared/auth-authorization.ts", i:["ตรวจ session, route ตาม menuAccess"], to:["f_api"]}
+  ]},
+  { h:"ส่วนกลาง", cards:[
+    {id:"f_api", t:"app/backend/", p:"client.ts + ~35 ไฟล์ *-api.ts", i:["createBackend({baseUrl, getToken}) แนบ Bearer JWT","storage.ts session key, line-login.ts"], to:["x_be","x_linelogin"]},
+    {id:"f_server", t:"server/api", p:"server/api/health.get.ts, share/config.get.ts", i:["2 route ของ Nuxt เอง"]}
+  ]},
+  { h:"ภายนอก", cards:[
+    {id:"x_be", t:"Backend /api/v1", c:"--be", i:["NUXT_PUBLIC_API_BASE_URL","/dashboard/*, /auth/*, /profile, /projects"]},
+    {id:"x_linelogin", t:"LINE Login", c:"--ext", i:["OAuth → /auth/line/callback"]}
+  ]}
+  ]}
+];
+
+var NOTES = {
+  sys:["มีแค่ Webhook ที่คุยกับ LINE (ถือ channel token) และมีแค่ Backend ที่เป็นเจ้าของ schema และ GCS แต่ทั้ง 3 service ใช้ PostgreSQL ตัวเดียวกัน: Webhook เขียน message_logs/line_groups/line_group_message_logs, AI อ่านตารางคน งาน โปรเจกต์ และเขียน ai_line_group_run_logs ตรง",
+      "ข้อความ LINE เข้า AI ได้ 2 เส้น: Webhook → AI /chat ตรง (flag + ปุ่ม review) และ Webhook → Backend /api/line/inputs → AI · ทีมใหม่ควรเลือกเส้นเดียว",
+      "งานนาน (ถอดเสียง, สรุปกลุ่ม, สไลด์) วิ่งใน process ของ AI ไม่มีคิวกลาง ขณะที่ Webhook และ Backend ใช้ Bull บน Redis",
+      "Redis มี 3 ชุด key (Webhook Bull, Backend Bull, AI state) แยกกันด้วย prefix: ถ้าจะแยก instance ทำได้โดยไม่ต้องแก้โค้ด แต่ต้องแก้ config ทุก env",
+      "บริการภายนอกที่ใช้ร่วม: Vertex (AI ทุก LLM step + Backend OCR) และ DeepInfra (Backend เขียน embedding, AI ฝัง query) ต้องใช้โมเดล/มิติเดียวกัน"],
+  ai:["chat คือก้อนใหญ่สุด (21.8k จาก ~45k บรรทัด) ถ้าจะแยก service ให้เริ่มดูเส้นแบ่ง tools/ ตามหมวด capability (งาน, โน้ต, โปรเจกต์, สไลด์, ประชุม) ซึ่ง bot_config ใช้แบ่งอยู่แล้ว",
+      "speech, group_summary, slides (เมื่อ queue) เป็นงาน background ใน process เดียวกับ /chat: restart = งานหาย ไม่มีคิวกลาง",
+      "AI อ่าน PostgreSQL ของ Backend ตรงผ่าน db/ (employees, task_search, project_search, bot_config, chat/task_sessions) — แยก DB ต้องเปลี่ยนเป็น API",
+      "history/redis_history.py เป็นเจ้าของ Redis client ที่ jobs, bot_config, meeting, group_summary ยืมใช้"],
+  be:["task/ (13k) และ dashboard/ (15k) ใหญ่สุด; line-input/ คือ orchestrator ของเส้น LINE → AI เดิม",
+      "การแจ้งเตือนกระจายอยู่ 4 ที่: task (command/reminder), task-review, common/notification-*, line-group/meeting notify — ทั้งหมดไปออก Hook ผ่าน /internal/line/*",
+      "cron 11 ตัวไม่มี distributed lock: scale > 1 instance แล้วรันซ้ำ",
+      "legacy/no-guard (line-message, line/chat, ai-gateway/transcribe, mock-ai, s3) ลบได้ก่อนย้าย"],
+  chat:["nodes/unified.py (2.3k, 51 ฟังก์ชันภายใน) คือจุดรวมของทุกโดเมน: shortcut, router, บันทึกตอน confirm, finalize — ถ้าแยก chat ให้เริ่มแยกไฟล์นี้ตามโดเมน",
+      "tools/ ทุกตัวเรียกนอก chat ผ่าน tools/deps.py เท่านั้น (จุด patch ของเทส): ย้าย backend client หรือ search ไป service อื่นแก้ที่ไฟล์นี้ไฟล์เดียว",
+      "utils/ มี import ย้อนชั้น 2 จุด: project_operations และ workflow_assets import chat.tools (utils ควรอยู่ใต้ tools) — ระวัง circular import ตอนแยก",
+      "utils/__init__ และ task_operations/__init__ เป็น facade: ไฟล์ส่วนใหญ่ import ผ่าน facade จึงพึ่ง utils ทั้งก้อน ถ้าจะแยกต้อง import ตรงไฟล์ก่อน",
+      "nodes/legacy.py (593 บรรทัด) ไม่ได้ต่อใน graph แล้ว ลบได้",
+      "prompt.py (1.2k) กับ schemas.py (1.4k, 60 คลาส) ถูกใช้แทบทุกไฟล์: เป็น contract ของ chat ควรย้ายเป็นแพ็กเกจกลางถ้าแยก service"],
+  hook:["line/ คือเกือบทั้ง repo (15.8k จาก ~21k); entry service ตัดสินเส้นทางทุก event",
+      "มี 2 เส้นไป AI: ตรงผ่าน processing/ai-dispatch (flag LINE_HOOK_DIRECT_AI_ENABLED) และผ่าน Backend /api/line/inputs",
+      "render แจ้งเตือนทุกชนิดที่นี่ แต่ policy/เวลาอยู่ Backend"],
+  fe:["เรียก Backend อย่างเดียว ไม่มี BFF: ย้าย/แยก Backend ต้องรักษา /api/v1 หรือแก้ app/backend/*-api.ts",
+      "สิทธิ์ฝั่งเว็บเป็นแค่ UI (menuAccess); Backend ตรวจซ้ำทุก request"]
+};
+
+/* ---------- render: ELK layered layout, lanes = partitions (left → right), wires always drawn ---------- */
+var COMMON = {chat:["c_chat_schemas","c_chat_prompt","c_chat_utils","c_chat_context","o_llm","o_kernel"]};
+var INTRA = {chat:3};   // lane whose own imports are hidden by default (utils/ → utils/: 61 of the chat wires)
+var tabs = document.getElementById('tabs'), panels = document.getElementById('panels');
+var elk = (typeof ELK !== 'undefined') ? new ELK() : null;
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function item(s){ return esc(s).replace(/&lt;code&gt;/g,'<code>').replace(/&lt;\/code&gt;/g,'</code>'); }
+var INDEX = {}, ST = {}, current = null, selected = null;
+
+SVC.forEach(function(svc){
+  INDEX[svc.key] = {};
+  svc.lanes.forEach(function(lane, li){ lane.cards.forEach(function(c){ c.lane = li; INDEX[svc.key][c.id] = c; }); });
+  if (svc.groups) {   // grouped tab: boxes and frames both addressable; 'to' comes from the edge list
+    svc.groups.forEach(function(g){ INDEX[svc.key][g.id] = {t:g.t, to:[]}; g.nodes.forEach(function(n){ n.to = []; INDEX[svc.key][n.id] = n; }); });
+    svc.edges.forEach(function(e){ INDEX[svc.key][e[0]].to.push(e[1]); });
+  }
+  var b = document.createElement('button');
+  b.className='tab'; b.setAttribute('role','tab'); b.id='tab-'+svc.key;
+  b.innerHTML='<span class="sw" style="background:var('+svc.color+')"></span>'+esc(svc.name);
+  b.onclick=function(){ show(svc.key, true); };
+  tabs.appendChild(b);
+  var p = document.createElement('section'); p.className='panel'; p.id='p-'+svc.key; p.setAttribute('role','tabpanel');
+  p.innerHTML = '<p class="svcsum">'+esc(svc.sum)+'</p><div class="work"><div class="stage" id="s-'+svc.key+'"><div class="sizer"><div class="canvas" id="c-'+svc.key+'"></div></div></div>'
+    + '<aside class="detail" id="dt-'+svc.key+'" aria-live="polite"><p class="empty">กดกล่องใน diagram เพื่อดู path, ของข้างใน, และรายการที่เรียก/ถูกเรียก</p></aside></div>'
+    + (NOTES[svc.key] ? '<div class="notes"><h3>ข้อสังเกตสำหรับการปรับโครงสร้าง</h3><ul>'+NOTES[svc.key].map(function(n){return '<li>'+esc(n)+'</li>';}).join('')+'</ul></div>' : '');
+  panels.appendChild(p);
+});
+
+function edgesOf(key){
+  var idx = INDEX[key], hideCommon = COMMON[key] && document.getElementById('common').checked, out = [];
+  var hideIntra = INTRA[key] != null && document.getElementById('intra').checked;
+  Object.keys(idx).forEach(function(s){
+    (idx[s].to||[]).forEach(function(t){
+      if (!idx[t] || t===s) return;
+      if (hideCommon && COMMON[key].indexOf(t) >= 0) return;
+      if (hideIntra && idx[s].lane === INTRA[key] && idx[t].lane === INTRA[key]) return;
+      out.push({s:s, t:t});
+    });
+  });
+  return out;
+}
+
+function nodeHtml(c, svc){
+  var col = c.c || svc.color;
+  return '<h4><span class="t" title="'+esc(c.t)+'">'+esc(c.t)+'</span>'+(c.s?'<span class="size">'+esc(c.s)+'</span>':'')+'</h4>'
+    + (c.p?'<div class="path" title="'+esc(c.p)+'">'+esc(c.p)+'</div>':'')
+    + (c.i&&c.i[0]?'<div class="one">'+item(c.i[0])+'</div>':'')
+    + (c.tags?'<div class="tags">'+c.tags.map(function(t){return '<span class="tag '+(t[1]||'')+'">'+esc(t[0])+'</span>';}).join('')+'</div>':'');
+}
+
+function layoutGrouped(svc){
+  // ELK with nested groups (INCLUDE_CHILDREN): each group is a frame with its boxes inside
+  var key = svc.key, canvas = document.getElementById('c-'+key), stage = document.getElementById('s-'+key), st = ST[key] = ST[key] || {scale:null};
+  canvas.innerHTML = ''; stage.setAttribute('data-busy', 'กำลังจัดวาง diagram…');
+  st.nodes = {};
+  var groups = svc.groups.map(function(g){
+    var kids = g.nodes.map(function(n){
+      var el = document.createElement('div');
+      el.className = 'node'+(n.cyl?' cyl':'')+(n.feat?' feat':''); el.tabIndex = 0; el.setAttribute('role','button'); el.dataset.id = n.id;
+      el.style.setProperty('--c','var('+(n.c||g.c||(g.data?'--store':svc.color))+')'); el.style.width = g.w+'px';
+      el.innerHTML = nodeHtml(n, svc);
+      canvas.appendChild(el);
+      st.nodes[n.id] = {el:el, w:g.w, h:Math.ceil(el.offsetHeight)};
+      return {id:n.id, width:g.w, height:st.nodes[n.id].h};
+    });
+    return {id:g.id, children:kids, layoutOptions:{'elk.padding':'[top=34,left=14,bottom=14,right=14]', 'elk.spacing.nodeNode':'12'}};
+  });
+  var edges = svc.edges.map(function(e){ return {s:e[0], t:e[1]}; });
+  st.edges = edges;
+  var graph = {id:'root', layoutOptions:{
+      'elk.algorithm':'layered', 'elk.direction':'RIGHT', 'elk.edgeRouting':'ORTHOGONAL',
+      'elk.hierarchyHandling':'INCLUDE_CHILDREN',
+      'elk.layered.spacing.nodeNodeBetweenLayers':'70', 'elk.spacing.nodeNode':'22', 'elk.spacing.edgeEdge':'7',
+      'elk.layered.spacing.edgeNodeBetweenLayers':'20', 'elk.layered.considerModelOrder.strategy':'NODES_AND_EDGES',
+      'elk.separateConnectedComponents':'false', 'elk.padding':'[top=20,left=20,bottom=20,right=20]'},
+    children: groups,
+    edges: edges.map(function(e, i){ return {id:'e'+i, sources:[e.s], targets:[e.t]}; })};
+  return elk.layout(graph).then(function(res){
+    var W = Math.ceil(res.width), H = Math.ceil(res.height), NS = 'http://www.w3.org/2000/svg';
+    canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    var svg = document.createElementNS(NS,'svg'); svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('aria-hidden','true');
+    svg.innerHTML = '<defs><marker id="ah-'+key+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="context-stroke"/></marker></defs>';
+    res.children.forEach(function(g){
+      var meta = svc.groups.filter(function(x){ return x.id===g.id; })[0];
+      var fr = document.createElementNS(NS,'g');
+      fr.innerHTML = '<rect class="band'+(meta.data?' data':'')+'" rx="8" x="'+g.x+'" y="'+g.y+'" width="'+g.width+'" height="'+g.height+'"/>'
+        + '<text class="grouplabel" x="'+(g.x+14)+'" y="'+(g.y+21)+'">'+esc(meta.t)+'</text>';
+      svg.appendChild(fr);
+      // elkjs 0.9.3 returns children relative to their group; edge sections relative to the edge's container (see gpos below)
+      (g.children||[]).forEach(function(n){ var nd = st.nodes[n.id]; nd.el.style.left = (g.x+n.x)+'px'; nd.el.style.top = (g.y+n.y)+'px'; });
+    });
+    var gpos = {root:{x:0,y:0}}; res.children.forEach(function(g){ gpos[g.id] = {x:g.x, y:g.y}; });
+    st.wires = [];
+    (res.edges||[]).forEach(function(e, i){
+      var off = gpos[e.container] || gpos.root;   // an edge inside one group comes back relative to that group
+      (e.sections||[]).forEach(function(sec){
+        var pts = [sec.startPoint].concat(sec.bendPoints||[], [sec.endPoint]).map(function(q){ return {x:q.x+off.x, y:q.y+off.y}; });
+        var path = document.createElementNS(NS,'path');
+        path.setAttribute('d', rounded(pts, 6)); path.setAttribute('class','wire'); path.setAttribute('marker-end','url(#ah-'+key+')');
+        path.dataset.s = edges[i].s; path.dataset.t = edges[i].t;
+        svg.appendChild(path); st.wires.push(path);
+      });
+    });
+    canvas.insertBefore(svg, canvas.firstChild);
+    st.W = W; st.H = H; st.laid = true; stage.removeAttribute('data-busy');
+    if (st.scale == null) fit(key); else zoom(key, st.scale);
+  });
+}
+function layout(key){
+  var svc = SVC.filter(function(s){return s.key===key;})[0], canvas = document.getElementById('c-'+key);
+  if (svc.groups) return layoutGrouped(svc);
+  if (!elk){ canvas.innerHTML = '<p class="msg">โหลดตัววาด diagram (elkjs) ไม่ได้ ตรวจการเชื่อมต่อแล้วโหลดหน้าใหม่</p>'; return Promise.resolve(); }
+  canvas.innerHTML = '';
+  var stage = document.getElementById('s-'+key);
+  stage.setAttribute('data-busy', 'กำลังจัดวาง diagram… (เส้นยิ่งมากยิ่งนาน สูงสุด ~15 วินาที)');
+  var st = ST[key] = ST[key] || {scale:null};
+  st.nodes = {};
+  var children = [];
+  svc.lanes.forEach(function(lane, li){
+    var w = li === svc.lanes.length-1 ? 200 : (lane.main ? 240 : 220);
+    lane.cards.forEach(function(c){
+      var el = document.createElement('div');
+      el.className = 'node'+(c.db?' db':''); el.tabIndex = 0; el.setAttribute('role','button'); el.dataset.id = c.id;
+      el.style.setProperty('--c','var('+(c.c||svc.color)+')'); el.style.width = w+'px';
+      el.innerHTML = nodeHtml(c, svc);
+      canvas.appendChild(el);
+      st.nodes[c.id] = {el:el, w:w, h:Math.ceil(el.offsetHeight)};
+      children.push({id:c.id, width:w, height:st.nodes[c.id].h, layoutOptions:{'elk.partitioning.partition': String(li)}});
+    });
+  });
+  var edges = edgesOf(key);
+  st.edges = edges;
+  var graph = {id:'root', layoutOptions:{
+      'elk.algorithm':'layered', 'elk.direction':'RIGHT', 'elk.edgeRouting':'ORTHOGONAL',
+      'elk.partitioning.activate':'true', 'elk.separateConnectedComponents':'false',
+      'elk.layered.spacing.nodeNodeBetweenLayers': String(svc.gap||90), 'elk.spacing.nodeNode':'16',
+      'elk.layered.spacing.edgeNodeBetweenLayers':'22', 'elk.layered.spacing.edgeEdgeBetweenLayers':'8', 'elk.spacing.edgeEdge':'7',
+      'elk.layered.crossingMinimization.strategy':'LAYER_SWEEP', 'elk.layered.nodePlacement.strategy':'NETWORK_SIMPLEX',
+      'elk.layered.considerModelOrder.strategy':'NODES_AND_EDGES', 'elk.padding':'[top=44,left=24,bottom=24,right=24]'},
+    children: children,
+    edges: edges.map(function(e, i){ return {id:'e'+i, sources:[e.s], targets:[e.t]}; })};
+  return elk.layout(graph).then(function(res){
+    var W = Math.ceil(res.width), H = Math.ceil(res.height);
+    canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    var NS='http://www.w3.org/2000/svg', svg = document.createElementNS(NS,'svg');
+    svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('aria-hidden','true');
+    svg.innerHTML = '<defs><marker id="ah-'+key+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="context-stroke"/></marker></defs>';
+    // lane bands from the laid-out nodes of each lane
+    var box = {};
+    res.children.forEach(function(n){
+      var c = INDEX[key][n.id], b = box[c.lane] || (box[c.lane] = {x1:1e9,y1:1e9,x2:-1e9,y2:-1e9});
+      b.x1=Math.min(b.x1,n.x); b.y1=Math.min(b.y1,n.y); b.x2=Math.max(b.x2,n.x+n.width); b.y2=Math.max(b.y2,n.y+n.height);
+      var nd = st.nodes[n.id]; nd.x=n.x; nd.y=n.y; nd.el.style.left=n.x+'px'; nd.el.style.top=n.y+'px';
+    });
+    var minY = Math.min.apply(null, Object.keys(box).map(function(k){return box[k].y1;})), maxY = Math.max.apply(null, Object.keys(box).map(function(k){return box[k].y2;}));
+    Object.keys(box).forEach(function(li){
+      var b = box[li], lane = svc.lanes[li];
+      var g = document.createElementNS(NS,'g');
+      g.innerHTML = '<rect class="band" rx="8" x="'+(b.x1-12)+'" y="'+(minY-38)+'" width="'+(b.x2-b.x1+24)+'" height="'+(maxY-minY+50)+'"/>'
+        + '<text class="bandlabel" x="'+(b.x1-2)+'" y="'+(minY-20)+'">'+esc(lane.h)+'</text>'
+        + (lane.sub?'<text class="bandsub" x="'+(b.x1-2)+'" y="'+(minY-6)+'">'+esc(lane.sub)+'</text>':'');
+      svg.appendChild(g);
+    });
+    st.wires = [];
+    (res.edges||[]).forEach(function(e, i){
+      var sec = e.sections && e.sections[0]; if (!sec) return;
+      var pts = [sec.startPoint].concat(sec.bendPoints||[], [sec.endPoint]);
+      var path = document.createElementNS(NS,'path');
+      path.setAttribute('d', rounded(pts, 6)); path.setAttribute('class','wire');
+      path.setAttribute('marker-end','url(#ah-'+key+')');
+      path.dataset.s = edges[i].s; path.dataset.t = edges[i].t;
+      svg.appendChild(path); st.wires.push(path);
+    });
+    canvas.insertBefore(svg, canvas.firstChild);
+    st.W = W; st.H = H; st.laid = true; stage.removeAttribute('data-busy');
+    if (st.scale == null) fit(key); else zoom(key, st.scale);
+  });
+}
+function rounded(p, r){
+  var d = 'M'+p[0].x+','+p[0].y;
+  for (var i=1;i<p.length-1;i++){
+    var a=p[i-1], b=p[i], c=p[i+1];
+    var d1=Math.min(r, Math.hypot(b.x-a.x,b.y-a.y)/2), d2=Math.min(r, Math.hypot(c.x-b.x,c.y-b.y)/2);
+    var ux=(b.x-a.x)/(Math.hypot(b.x-a.x,b.y-a.y)||1), uy=(b.y-a.y)/(Math.hypot(b.x-a.x,b.y-a.y)||1);
+    var vx=(c.x-b.x)/(Math.hypot(c.x-b.x,c.y-b.y)||1), vy=(c.y-b.y)/(Math.hypot(c.x-b.x,c.y-b.y)||1);
+    d += ' L'+(b.x-ux*d1)+','+(b.y-uy*d1)+' Q'+b.x+','+b.y+' '+(b.x+vx*d2)+','+(b.y+vy*d2);
+  }
+  var z=p[p.length-1]; return d+' L'+z.x+','+z.y;
+}
+function zoom(key, s){
+  var st = ST[key]; if (!st || !st.laid) return;
+  st.scale = Math.max(.25, Math.min(1.6, s));
+  var c = document.getElementById('c-'+key); c.style.transform = 'scale('+st.scale+')';
+  var sz = c.parentNode; sz.style.width = (st.W*st.scale)+'px'; sz.style.height = (st.H*st.scale)+'px';
+  document.getElementById('zval').textContent = Math.round(st.scale*100)+'%';
+}
+function fit(key){
+  var st = ST[key], stage = document.getElementById('s-'+key);
+  zoom(key, Math.min(1, (stage.clientWidth-8)/st.W));
+}
+function show(key, push){
+  SVC.forEach(function(s){
+    var on = s.key===key;
+    document.getElementById('tab-'+s.key).setAttribute('aria-selected', on);
+    document.getElementById('p-'+s.key).classList.toggle('on', on);
+  });
+  current = key; selected = null;
+  var cw = document.getElementById('commonwrap');
+  cw.hidden = !COMMON[key];
+  document.getElementById('intrawrap').hidden = INTRA[key] == null;
+  if (INTRA[key] != null) document.getElementById('intralist').textContent = SVC.filter(function(s){return s.key===key;})[0].lanes[INTRA[key]].h + ' → ' + SVC.filter(function(s){return s.key===key;})[0].lanes[INTRA[key]].h;
+  if (COMMON[key]) document.getElementById('commonlist').textContent = COMMON[key].map(function(id){ return INDEX[key][id] ? INDEX[key][id].t : id; }).join(', ');
+  if (push) { try { history.replaceState(null,'','#'+key); } catch(e){} }
+  var st = ST[key];
+  (st && st.laid ? Promise.resolve() : layout(key)).then(function(){ select(null); if (ST[key] && ST[key].scale) zoom(key, ST[key].scale); });
+}
+function incoming(key, id){ var idx=INDEX[key]; return Object.keys(idx).filter(function(k){ return (idx[k].to||[]).indexOf(id)>=0; }); }
+function select(id){
+  var st = ST[current]; if (!st || !st.laid) return;
+  selected = id;
+  var canvas = document.getElementById('c-'+current), dt = document.getElementById('dt-'+current), info = document.getElementById('selinfo');
+  Object.keys(st.nodes).forEach(function(k){ st.nodes[k].el.classList.remove('lit','sel'); });
+  st.wires.forEach(function(w){ w.classList.remove('in','out'); });
+  if (!id){
+    canvas.classList.remove('focus');
+    info.textContent = 'กดกล่องเพื่อดูรายละเอียดและไฮไลต์เส้นของกล่องนั้น · Esc ยกเลิก';
+    dt.innerHTML = '<p class="empty">กดกล่องใน diagram เพื่อดู path, ของข้างใน, และรายการที่เรียก/ถูกเรียก</p>';
+    return;
+  }
+  var c = INDEX[current][id], outs = (c.to||[]).filter(function(x){ return INDEX[current][x] && x!==id; }), ins = incoming(current, id);
+  canvas.classList.add('focus');
+  st.nodes[id].el.classList.add('sel');
+  outs.concat(ins).forEach(function(x){ if (st.nodes[x]) st.nodes[x].el.classList.add('lit'); });
+  st.wires.forEach(function(w){ if (w.dataset.s===id) w.classList.add('out'); if (w.dataset.t===id) w.classList.add('in'); });
+  st.wires.filter(function(w){ return w.dataset.s===id || w.dataset.t===id; }).forEach(function(w){ w.parentNode.appendChild(w); });
+  info.innerHTML = '<b>'+esc(c.t)+'</b> · เรียก/ใช้ '+outs.length+' · ถูกเรียกจาก '+ins.length;
+  function links(list, cls){ return list.length ? '<div class="links">'+list.map(function(x){ return '<button class="'+cls+'" data-go="'+x+'">'+esc(INDEX[current][x].t)+'</button>'; }).join('')+'</div>' : '<p class="empty">—</p>'; }
+  dt.innerHTML = '<h3>'+esc(c.t)+'</h3>'+(c.p?'<div class="path">'+esc(c.p)+'</div>':'')+(c.s?'<div class="path">'+esc(c.s)+'</div>':'')
+    + (c.i&&c.i.length?'<ul>'+c.i.map(function(x){ return '<li>'+item(x)+'</li>'; }).join('')+'</ul>':'')
+    + (c.tags?'<div class="tags" style="display:flex;gap:4px;flex-wrap:wrap">'+c.tags.map(function(t){return '<span class="tag '+(t[1]||'')+'">'+esc(t[0])+'</span>';}).join('')+'</div>':'')
+    + '<h5>เรียก / ใช้ ('+outs.length+')</h5>'+links(outs,'out')
+    + '<h5>ถูกเรียกจาก ('+ins.length+')</h5>'+links(ins,'in');
+}
+panels.addEventListener('click', function(e){
+  var go = e.target.closest('[data-go]');
+  if (go){ var id = go.dataset.go; select(id); var nd = ST[current].nodes[id].el; nd.scrollIntoView({block:'center', inline:'center', behavior:'smooth'}); return; }
+  var n = e.target.closest('.node');
+  if (n) { select(selected===n.dataset.id ? null : n.dataset.id); return; }
+  if (e.target.closest('.stage')) select(null);
+});
+panels.addEventListener('keydown', function(e){
+  var n = e.target.closest && e.target.closest('.node');
+  if (n && (e.key==='Enter'||e.key===' ')) { e.preventDefault(); select(selected===n.dataset.id ? null : n.dataset.id); }
+});
+document.addEventListener('keydown', function(e){ if (e.key==='Escape') select(null); });
+document.getElementById('zin').onclick = function(){ zoom(current, (ST[current].scale||1)*1.2); };
+document.getElementById('zout').onclick = function(){ zoom(current, (ST[current].scale||1)/1.2); };
+document.getElementById('zfit').onclick = function(){ fit(current); };
+document.getElementById('z100').onclick = function(){ zoom(current, 1); };
+document.getElementById('common').onchange = document.getElementById('intra').onchange = function(){ var k=current; ST[k].laid=false; ST[k].scale=null; layout(k).then(function(){ select(null); }); };
+var start = (location.hash||'').replace('#','');
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function(){ show(INDEX[start] ? start : 'sys', false); });
+</script>
+
+</body>
+</html>
