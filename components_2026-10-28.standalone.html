@@ -48,7 +48,7 @@ button:focus-visible,.node:focus-visible,input:focus-visible{outline:2px solid v
 .panel{display:none}.panel.on{display:block}
 .svcsum{font-size:13px;color:var(--muted);margin:0 0 8px;max-width:150ch}
 .work{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
-.stage{position:relative;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg);height:min(78vh,1100px)}
+.stage{position:relative;overflow:auto;cursor:grab;touch-action:none;overscroll-behavior:contain;border:1px solid var(--line);border-radius:8px;background:var(--bg);height:min(78vh,1100px)}
 .sizer{position:relative}
 .canvas{position:absolute;left:0;top:0;transform-origin:0 0}
 .canvas svg{position:absolute;left:0;top:0;overflow:visible}
@@ -94,6 +94,14 @@ button:focus-visible,.node:focus-visible,input:focus-visible{outline:2px solid v
 .notes ul{margin:0;padding-left:18px}
 .notes li{margin:3px 0;max-width:130ch}
 .msg{padding:24px;color:var(--muted)}
+.stage.panning{cursor:grabbing;user-select:none}
+.zhint{font-size:12px;color:var(--muted)}
+[hidden]{display:none!important}
+.detail .where{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:2px}
+.detail .note2{margin:0;line-height:1.6;background:var(--accent-soft);border-radius:6px;padding:8px 10px}
+.detail .summary{margin:0;color:var(--muted);line-height:1.55}
+.detail .lg{margin:4px 0 8px}
+.detail .lgt{font-size:11.5px;color:var(--muted);margin-bottom:3px}
 .band.data{fill:var(--card)}
 .grouplabel{fill:var(--fg);font:600 13px var(--sans)}
 .node.feat{box-shadow:inset 0 0 0 1px var(--c)}
@@ -118,7 +126,7 @@ button:focus-visible,.node:focus-visible,input:focus-visible{outline:2px solid v
 <div class="tabs" role="tablist" id="tabs"></div>
 <div class="bar">
   <button class="btn" id="zout" aria-label="ย่อ">−</button><button class="btn" id="zin" aria-label="ขยาย">+</button><button class="btn" id="zfit">พอดีจอ</button><button class="btn" id="z100">100%</button>
-  <span id="zval"></span>
+  <span id="zval"></span><span class="zhint">pinch หรือ Ctrl/⌘ + ล้อเมาส์ = ซูม · ลากพื้นที่ว่าง = เลื่อน · ดับเบิลคลิก = ซูมเข้า (Shift = ออก)</span>
   <label class="chk" id="commonwrap" hidden><input type="checkbox" id="common" checked> ซ่อนเส้นไปไฟล์ที่ใช้ทั่ว (<span id="commonlist"></span>)</label>
   <label class="chk" id="intrawrap" hidden><input type="checkbox" id="intra" checked> ซ่อนเส้น <span id="intralist"></span> ที่ import กันเอง</label>
   <span class="grow"></span><span id="selinfo">กดกล่องเพื่อดูรายละเอียดและไฮไลต์เส้นของกล่องนั้น · Esc ยกเลิก</span>
@@ -692,6 +700,240 @@ var NOTES = {
       "สิทธิ์ฝั่งเว็บเป็นแค่ UI (menuAccess); Backend ตรวจซ้ำทุก request"]
 };
 
+/* Longer notes shown in the detail panel, keyed "tab:boxId". A box without one still gets its place, items and grouped links. */
+var DETAILS = {
+ "sys:C_line":"ผู้ใช้คุยกับบอททาง LINE OA: แชต 1:1, กลุ่มที่เชิญบอทเข้าไป, ไฟล์ รูป เสียง และปุ่มบน Flex card · ทุก event ส่งเข้า Webhook ที่เดียว ระบบอื่นไม่รับจาก LINE ตรง",
+ "sys:C_web":"หน้าเว็บ dashboard สำหรับ admin และผู้บริหาร: จัดการผู้ใช้ สิทธิ์ โควตา แจ้งเตือน และดูรายงาน · เข้าระบบด้วย LINE Login หรือรหัสผ่าน",
+ "sys:C_prov":"Zoom และ Microsoft Teams แจ้ง Backend เมื่อการประชุมจบหรือมี transcript (Zoom ตรวจ HMAC, Graph ตรวจ subscription) · Backend ไปดึงไฟล์เองผ่าน API ของผู้ให้บริการ",
+ "sys:F_pages":"Nuxt 4 แบบ SPA (ssr: false) build เป็นไฟล์ static ไม่มี server ของตัวเองนอกจาก /health และ /share/config · สิทธิ์ฝั่งเว็บเป็นแค่การซ่อนเมนูตาม menuAccess ส่วน Backend ตรวจซ้ำทุก request",
+ "sys:F_api":"ไฟล์ *-api.ts ราว 35 ไฟล์ เรียก Backend /api/v1 ตรงจาก browser แนบ JWT ที่เก็บใน session/localStorage · ไม่มี BFF และไม่เรียก AI",
+ "sys:H_entry":"ประตูหน้าของ LINE OA: ตรวจ x-line-signature, ตอบ LINE 200 ทันที แล้วโยน event เข้าคิว · แยก follow/unfollow/message/postback/join, resolve ผู้ใช้จาก Backend, เปิด loading animation, กันคนที่ยังไม่ลงทะเบียน และรับคำสั่ง admin แบบตรงตัว · เขียน message_logs และ log ข้อความกลุ่มลง DB เอง",
+ "sys:H_proc":"6 คิว Bull ของ Webhook: inbound (ทุก event), conversation-batch (รวมข้อความที่พิมพ์ติดกัน), image-set (รวมรูปหลายใบ), ai-dispatch (เรียก AI), ai-usage (รายงาน token ให้ Backend), delivery (ส่งข้อความออก) · ทุกคิว retry 3 ครั้ง",
+ "sys:H_chat":"มี 2 เส้นไป AI: ถ้าเปิด LINE_HOOK_DIRECT_AI_ENABLED จะเรียก AI /chat เอง, ถ้าปิดจะส่งให้ Backend /api/line/inputs แล้วรอผลกลับทาง /internal/line/input-results · ปุ่ม review บน Flex เรียก AI ตรงเสมอ",
+ "sys:H_media":"ดาวน์โหลดไฟล์ รูป เสียง จาก LINE content API แล้วส่ง bytes ให้ Backend เก็บ GCS · พอ Backend เตรียมไฟล์เสร็จจะเรียก /internal/line/media-ready แล้ว Webhook ค่อยส่ง file_uri ต่อให้ AI",
+ "sys:H_notify":"Webhook ไม่มี cron: Backend เป็นคนตัดสินว่าจะแจ้งอะไร เมื่อไร (policy, quiet hours, รวมข้อความ) แล้วเรียก /internal/line/* · Webhook แค่ประกอบ Flex/ข้อความ push ไป LINE และรายงานผล DELIVERED / FAILED / SKIPPED กลับ",
+ "sys:H_reg":"state machine ลงทะเบียน: ขอเบอร์ → OTP (Backend ส่ง SMS) → consent → ชื่อเล่น · คำสั่ง admin เช่นตั้งชื่อเล่น ปิดบัญชี import พนักงาน ส่งต่อให้ Backend",
+ "sys:H_client":"ที่เดียวในระบบที่ถือ LINE channel token: reply, push, loading, profile, ดาวน์โหลด content, สรุปกลุ่ม · แบ่งข้อความยาว, retry, จัดการ 429 (โควตา push รายเดือน)",
+ "sys:B_input":"orchestrator ของเส้นเดิม LINE → AI: รับจาก Webhook ตอบ 202, รวมข้อความ (line-candidate-batch), แปลงเอกสารเป็น PDF, แยกเสียงสั้น/ยาว, เรียก AI ผ่าน line-ai-dispatch แล้วส่งผลกลับ Webhook ผ่าน line-input-result-callback · ไฟล์เก็บที่ line-inputs/ และ voice-messages/",
+ "sys:B_aigw":"client เดียวที่ Backend ใช้เรียก AI (Bearer AI_SERVICE_BEARER_TOKEN): /chat, /chat/history, /multi-channel, /line-group-summary/runs, /api/message/persona · นับ token/ค่าใช้จ่ายลง ai_usage_logs, rate limit, cache",
+ "sys:B_task":"เจ้าของข้อมูลงาน: AI เรียก /api/tasks/ai/create|update ตอนผู้ใช้ยืนยัน (เมื่อเปิด flag) และ /sessions สำหรับชุด review · ตรวจ BU, ball holder, หลักฐานปิดงาน, สร้าง embedding ของงาน, คิว task-review-expiry ทำ auto-approve เมื่อหมดเวลา แล้วส่งให้ notification engine",
+ "sys:B_meet":"รับ webhook Zoom/Teams → คิว zoom-recording / microsoft-teams-ingest ดึง recording หรือ transcript ลง GCS meetings/ → ส่ง AI /multi-channel · รับ callback ผลประชุม ทำ MoM + PDF แล้วเปิด review · /calendar/* เป็น proxy ไป Google Calendar ให้ AI นัดประชุม",
+ "sys:B_ocr":"AI เรียก /api/ocr/store_file เพื่อฝากไฟล์เข้าโปรเจกต์ → คิว ocr-process ใช้ Gemini OCR บน Vertex แปลงเป็นข้อความ + embedding DeepInfra ลง ocr_document_chunks · /file_rag_search ให้ AI ถามคำถามจากไฟล์, /interrupt หยุดงาน",
+ "sys:B_group":"cron 00:06 / 06:06 / 16:06 เริ่มรอบสรุปกลุ่ม → สั่ง AI /line-group-summary/runs → checker ทุก 30 นาที poll ตาราง ai_line_group_run_logs (AI เขียน) → สร้าง review ต่อผู้สั่งแล้วแจ้งผ่าน Webhook",
+ "sys:B_notify":"NotificationMasterConfig ต่อ BU กำหนดชนิดและเวลา, scheduler ส่ง daily summary/deadline/overdue/escalation, delivery policy ดู quiet hours + จำนวนต่อวัน + role bypass แล้วรวมเป็นข้อความเดียวต่อผู้รับ · ทุกข้อความออกทาง Webhook",
+ "sys:B_jobs":"AI ส่ง event ของงานเบื้องหลัง (สไลด์, ถอดเสียง LINE) มาที่ /api/ai/jobs/events → คิว ai-job-events → Webhook push % ให้ผู้ใช้ · เก็บ metadata สไลด์, short link /s/:token สำหรับลิงก์ดาวน์โหลด",
+ "sys:B_id":"employee command API ให้ Webhook (resolve ผู้ใช้, ชื่อเล่น, ปิดบัญชี), OTP ผ่าน ThaiBulkSMS, consent, login เว็บ (เบอร์/อีเมล, LINE OAuth, JWT + revocation) และ permission roles (catalog 14 key, NONE/PARTIAL/FULL) · /v1/internal/employees/:id/authorization ให้ AI อ่านสิทธิ์",
+ "sys:B_dash":"API ทุกหน้าของเว็บ (/api/v1/dashboard/*): overview, projects, workstream, inbox, people, departments, meetings, performance, users, roles, token quota, audit, notifications · ตรวจสิทธิ์ทุก route ด้วย permission-request.ts",
+ "sys:B_cron":"@Cron 11 ตัว: group summary + checker, review-expiry recovery 5 นาที, OCR sweep ทุกนาที, Graph subscription renew, Zoom/Teams users sync, employee retention 03:00, performance snapshot รายเดือน, JWT cleanup, notification scheduler ต่อ BU · ไม่มี distributed lock: scale เกิน 1 instance แล้วรันซ้ำ",
+ "sys:A_chat":"LangGraph: get_history → unified_agent (model เลือก tool เอง, repair เมื่อ model พลาด) → unified_tools → finalize → save_history · 40 tool ใน 8 หมวด (งาน โน้ต ค้นงาน คน โปรเจกต์ ไฟล์ ประชุม สไลด์) · ตอบ sync ใน request พร้อม metadata flow/status/payload.tasks · บันทึกงานเองตอน confirm เมื่อเปิด task_command.api_enabled (production ปิด)",
+ "sys:A_speech":"รับ gs:// เสียงหรือ VTT ตอบ 202 แล้วทำใน BackgroundTasks: VAD → Google STT chirp_3 → รวมบทพูด → LLM สกัดงาน → LLM สรุปประชุม → callback Backend → ส่ง HR ingest · ไฟล์เสียง LINE มี % และยกเลิกได้ (job) · ไม่มีคิวกลาง: restart แล้วงานหาย",
+ "sys:A_group":"batch สรุปกลุ่ม: ขอรายชื่อกลุ่มและข้อความแต่ละช่วงจาก Backend → LLM สรุปเป็นงาน → รวมกับรอบก่อนไม่ให้ซ้ำ → เขียน ai_line_group_run_logs ตรง (Backend poll) · ความคืบหน้าเก็บ Redis",
+ "sys:A_persona":"rewrite ข้อความที่ Backend/Webhook ประกอบเอง (เช่นแจ้งเตือน) ให้เป็นน้ำเสียงน้องลิสท์ ถ้าช้าหรือพังคืนข้อความเดิม · Backend ตั้ง timeout 5 วินาที ซึ่งต่ำกว่า p50 จึง fallback บ่อย",
+ "sys:A_search":"อ่าน DB ของ Backend ตรง: ขอบเขตว่าใครมอบงานให้ใครได้ (ลงตามสาย, ระดับเดียวกัน, หัวหน้าหน่วย), ผังองค์กร, ค้นงาน v3 (pg_trgm + vector, เปิดด้วย flag) และค้นโปรเจกต์ hybrid-v2 · ฝัง query ด้วย DeepInfra bge-m3 512 มิติ ต้องตรงกับที่ Backend เขียน",
+ "sys:A_state":"state ทั้งหมดของ AI อยู่ใน Redis: ประวัติแชต (TTL 1 ชม., 10 turn, ร่างที่ค้าง review), job record ของ slide/voice, config สิทธิ์ของบอท (bot_config, production ปิด), journal ของการนัดประชุม · /chat จึง stateless scale ได้",
+ "sys:A_clients":"HTTP client ไป Backend ทั้งหมด (x-internal-token 2 ค่า): task command + sessions, task query, calendar, OCR/file RAG, LINE project API, line-groups, slides, short links, job events, callback ถอดเสียง",
+ "sys:A_llm":"kernel ของ AI ที่ไม่ import feature: LiteLLM router (gemini-3.1-flash-lite ทุก step), Langfuse trace, นับ usage/cost, async SQLAlchemy engine, GCS client, config yaml + secrets",
+ "sys:T_org":"business_units, departments, organization_positions, employees, employee_organization_positions + ลงทะเบียน/consent/auth + permission_roles, rules, assignments และ employee_permission (LEGACY) · AI อ่านตรงเพื่อหาคน หัวหน้า และขอบเขตมอบงาน",
+ "sys:T_task":"tasks (+description_embedding), task_assignments, task_events, task_sources (+media), task_completion_evidences, task_reminders + review: task_review_sessions, line_chat_task_sessions, line_task_review_inbox, task_review_source_settings · AI อ่าน tasks ตอนค้น และอ่าน sessions ตอนแก้ชุด review",
+ "sys:T_line":"line_input_batches/items, line_voice_messages/chunks ของเส้น Backend และ message_logs ที่ Webhook เขียนเอง · เป็นตารางที่ 2 service เขียน",
+ "sys:T_group":"line_groups + line_group_message_logs (Webhook เขียน), line_group_summary_batches/notifications (Backend), ai_line_group_run_logs (+_token, AI เขียน) · 3 service แตะตารางกลุ่มนี้ ถ้าแยก DB ต้องเปลี่ยนเป็น API",
+ "sys:T_proj":"projects, project_members, project_departments · สร้าง/แก้ผ่าน Backend (LINE project API หรือเว็บ) AI อ่านตรงเพื่อค้นชื่อโปรเจกต์และเช็กสมาชิก",
+ "sys:T_meet":"meetings, occurrences, participants, artifacts (+chunks), transcript_segments, meeting_documents (MoM), calendar_meeting_creations/updates, provider_connections, inbound_provider_events · Backend เป็นเจ้าของทั้งหมด",
+ "sys:T_ocr":"ocr_documents และ ocr_document_chunks (ข้อความ + embedding) ที่ file_rag_search ค้น",
+ "sys:T_usage":"ai_jobs, ai_usage_logs (token/ค่าใช้จ่ายทุกช่องทาง), voice_usage_logs (นาทีเสียง), token_quota_* · โควตาวันนี้เป็นแค่ monitoring (enforcementEnabled=false)",
+ "sys:T_notify":"notification_master_configs (+revisions) กำหนดการแจ้งเตือนต่อ BU และ notification_deliveries บันทึกการส่งทุกครั้ง (ส่ง / ถือไว้ / ข้าม)",
+ "sys:T_misc":"slide_generations, short_links, performance_snapshots (+metrics), report_exports, api_request_logs, api_outbound_logs, business_audit_events",
+ "sys:R_hook":"คิวของ Webhook ทั้ง 6 ตัว ชื่อขึ้นต้น line-hook-* · ทำให้ event ไม่หายเมื่อ process restart (แทน state ใน memory แบบเดิม)",
+ "sys:R_be":"14 คิว Bull ของ Backend: 6 คิวของเส้น LINE input, ocr-process, task-review-expiry (delayed ต่อ session), ai-job-events, embedding 2 คิว, zoom-recording, microsoft-teams-ingest, legacy voice · Backend ใช้ Redis เป็นคิวอย่างเดียว",
+ "sys:R_ai":"key ของ AI ขึ้นต้น REDIS_KEY_PREFIX: {p}:{line_user_id} ประวัติแชต, {p}:job:{id} + jobs:{owner}, {p}:bot_config:*, {p}:meeting:*:operation:*, {p}:group_summary:* · ทุกตัวมี TTL ยกเว้น bot_config",
+ "sys:G_line":"Backend เขียนไฟล์จาก LINE ที่ line-inputs/{messageId}/(original|converted|image), voice-messages/, line-groups/{group}/{message} · AI อ่านผ่าน gs:// ที่ได้รับ · Webhook ไม่มีสิทธิ์เขียน bucket",
+ "sys:G_meet":"meetings/{BU}/zoom|ms/{occurrence}/ audio และ transcript ที่ Backend ดึงจาก Zoom/Graph, AI อ่านไปถอดเสียง, MoM PDF",
+ "sys:G_ocr":"ไฟล์ที่ฝากเข้าโปรเจกต์รอ OCR",
+ "sys:G_dash":"dashboard/{BU}/imports, organization-imports (Excel นำเข้าพนักงาน/โครงสร้าง) และ reports (ไฟล์รายงานที่ export)",
+ "sys:G_ai":"AI เขียน slides/*.pptx แล้วสร้าง signed URL + short link และเขียน chunk เสียงชั่วคราวระหว่าง ASR (ลบตอน cleanup)",
+ "sys:X_lineapi":"api.line.me/v2/bot และ api-data.line.me · มีโควตา push รายเดือน (เคยชน 429 ตอนทดสอบ)",
+ "sys:X_linelogin":"OAuth ของ LINE สำหรับ login เว็บและผูกโปรไฟล์ Backend ตรวจ id token",
+ "sys:X_vertex":"Gemini บน Vertex AI: AI ใช้ gemini-3.1-flash-lite ทุก LLM step (agent, สกัดงาน, สรุป, rerank, persona) และ flash-image วาดรูปสไลด์ · Backend ใช้ Gemini ทำ OCR",
+ "sys:X_stt":"Google Speech-to-Text v2 โมเดล chirp_3 ภาษาไทย ที่ AI ใช้ถอดเสียง",
+ "sys:X_di":"embedding BAAI/bge-m3 512 มิติ · Backend ฝังข้อความงาน/โปรเจกต์/OCR ตอนบันทึก, AI ฝังคำค้นตอนค้น · ต้องใช้โมเดลและมิติเดียวกัน",
+ "sys:X_lf":"self-hosted Langfuse เก็บ trace ทุก turn ของ AI พร้อม token/ค่าใช้จ่าย",
+ "sys:X_gcal":"Backend ใช้ service account สร้าง/แก้/ยกเลิกนัด และดู free-busy ให้ AI",
+ "sys:X_zoom":"Zoom API (S2S OAuth) และ Microsoft Graph (client credentials) สำหรับดึง recording/transcript และ sync ผู้ใช้รายวัน",
+ "sys:X_sms":"ส่ง OTP ตอนลงทะเบียนและลืมรหัสผ่าน",
+ "sys:X_hr":"host ภายนอก (railway) ที่ AI ส่งสรุปประชุมไปเข้าระบบ HR เมื่อเปิด meeting_ingest.gate",
+ "sys:X_aws":"ทั้ง 3 service อ่าน secret จาก AWS Secrets Manager ตอนรันบน server (ชื่อ secret ของ Backend/Webhook ยัง hardcode -dev)"
+};
+
+Object.assign(DETAILS, {
+ "aimap:R_chat":"ทางเข้าหลักของแชต: Webhook เรียกตรง (flag direct AI และปุ่ม review) หรือ Backend เรียกผ่าน line-ai-dispatch · รับ messages + metadata ตอบ reply และ metadata{flow,status,payload.tasks} ใน request เดียว ไม่ใช้ callback",
+ "aimap:R_hist":"Backend เขียนข้อความที่ส่งถึงผู้ใช้แล้ว (เช่นแจ้งเตือน, review จากประชุม) ลงประวัติแชตของคนนั้น เพื่อให้ turn ถัดไปของ agent รู้บริบท · กันข้อความซ้ำด้วย history_event_id",
+ "aimap:R_mc":"รับงานถอดเสียงจาก Backend (Zoom, Teams, ไฟล์เสียง LINE ยาว) ตอบ 202 ทันทีแล้วทำใน BackgroundTasks 2 lane (line / batch) ผลส่งกลับทาง callback · ถ้า source=line จะสร้าง job ให้ดู % และยกเลิกได้",
+ "aimap:R_stub":"route เก่าที่ยังเปิดอยู่แต่แค่ตอบ {\"status\":\"ok\"} · Backend ยังเรียกจาก legacy voice queue และ /ai-gateway/transcribe ควรลบทั้งสองฝั่ง",
+ "aimap:R_gs":"Backend cron สั่งเริ่ม batch สรุปกลุ่มของรอบ (202) · GET /runs/{batch_id} อ่านความคืบหน้าจาก Redis แต่ Backend จริงไม่ใช้ เพราะ poll ตาราง ai_line_group_run_logs แทน",
+ "aimap:R_per":"Backend (ตามคำขอของ Webhook) ส่งข้อความที่ประกอบเองมาให้ rewrite เป็นเสียงน้องลิสท์ · Backend ตั้ง timeout 5 วินาที",
+ "aimap:R_asg":"ถามว่า LINE user คนนี้มอบงานให้ใครได้บ้าง ตามกฎองค์กรของบอท คืนรายชื่อพร้อม scope (department, lower_unit, same_level, child_unit_head ...)",
+ "aimap:R_jobs":"ดูสถานะงานเบื้องหลัง (percent, stage, ผลเมื่อเสร็จ) และสั่งหยุด · ผู้ใช้สั่งผ่านแชตได้ด้วย tool job_status / cancel_job",
+ "aimap:R_bc":"12 route ตั้ง capability และสิทธิ์ของบอทต่อ BU/คน + หน้า /console สำหรับทดสอบ · ตอบ 404 เมื่อ bot_config.enabled=false (production)",
+ "aimap:R_eval":"6 route ให้ทีมทดสอบรันค้นงาน โปรเจกต์ และคน แบบมี/ไม่มี rerank คืน id ที่เจอ + latency ไว้วัดคุณภาพ ไม่ได้ให้คะแนนเอง",
+ "aimap:CHAT":"feature ใหญ่สุด (48 ไฟล์ 21.8k บรรทัด ~ครึ่งหนึ่งของ AI): LangGraph graph, agent, 40 tools, prompt, metadata ของงาน · เรียกแทบทุก feature อื่น · ดูรายไฟล์ที่ tab “AI · chat ภายใน”",
+ "aimap:SPEECH":"graph ถอดเสียง 8 node: process_vad → process_asr → merge_transcripts → extract_tasks → extract_meeting_summary → callback → ingest_meeting → cleanup · ใช้ Google STT chirp_3 และ LLM สกัดงาน/สรุป",
+ "aimap:GS":"รันสรุปกลุ่ม LINE เป็นรอบ: ดึงรายชื่อกลุ่มและข้อความจาก Backend, LLM สรุปเป็นงาน, รวมกับรอบก่อน, เขียนผลลงตาราง run logs ตรง และนับ token ลง _token",
+ "aimap:MEET":"7 tool ประชุม (free-busy, slots, query, detail, create, update, cancel) ผ่าน Calendar API ของ Backend · หาผู้เข้าร่วม/โปรเจกต์, แก้ tool ที่ model เลือกผิด, journal ใน Redis กันจองซ้ำ",
+ "aimap:SL":"slide agent สร้าง/แก้ deck ด้วย SLIDE_TOOLS, render เป็น .pptx, วาดรูปด้วย gemini-flash-image, อัปโหลด GCS slides/ + short link · chat เป็นคนเรียก และเข้าคิว job เมื่อเปิด slide.queue_enabled",
+ "aimap:EMP":"อ่านตารางคนและองค์กรของ Backend ตรง: หาคนจากชื่อเล่น, ขอบเขตว่าใครมอบงานให้ใครได้, หัวหน้าหน่วย (ตำแหน่ง level ต่ำสุดที่ประจำในหน่วย), org_chain / org_chart · feature อื่นหลายตัวมาใช้",
+ "aimap:TS":"ค้นงานเวอร์ชัน 3: pg_trgm ทั้งขอบเขต + vector จาก tasks.description_embedding + LLM rerank · ใช้เมื่อ task_query.search_enabled=true (ปิดทุก env ยกเว้น local) ไม่งั้น query_tasks เรียก Backend /api/tasks/query",
+ "aimap:PS":"ค้นชื่อโปรเจกต์แบบ hybrid-v2: fuzzy + ตรงรหัส + vector top-20 แล้ว rerank เมื่อไม่มั่นใจ · กรองตามสิทธิ์ (เป็นสมาชิก / ไม่เป็น)",
+ "aimap:BC":"capability (งาน โน้ต โปรเจกต์ สไลด์ ประชุม) + สิทธิ์ 6 key แบบ dashboard ต่อ BU/คน · โหลดทุก turn, ตัด tool ที่ปิด, ตรวจทุก tool call, ซ่อนแถวที่ไม่มีสิทธิ์อ่าน · production ปิด",
+ "aimap:HIST":"เก็บประวัติแชตใน Redis (TTL 1 ชม., 10 turn) รวม state ค้างของบทสนทนา (_pending_review, _review_sessions, _parked_batch, _slide_deck) · เป็นเจ้าของ Redis client ที่ jobs, bot_config, meeting, group_summary ยืมใช้",
+ "aimap:JOBS":"job record ของ slide/voice ใน Redis (ไฟล์ store.py เดียวที่รู้ schema) + Progress: % ไม่ถอยหลัง, heartbeat 30 วิ, cancel flag, ส่ง event ให้ Backend push LINE · job ที่ไม่ขยับ 180 วิ นับว่า lost",
+ "aimap:PERS":"prompt บุคลิกน้องลิสท์ + rewrite ข้อความ คืนข้อความเดิมเมื่อ LLM ช้าหรือพัง",
+ "aimap:SE":"เรียก task_search, project_search และ employees ด้วย input ของ tester คืนผลดิบ ไม่มี logic ของตัวเอง",
+ "aimap:K_llm":"LiteLLM Router อ่าน assets/model_list.yaml (gemini-3.1-flash-lite + ตัวเลือก 3.5/3.8), Langfuse callback, นับ token/ค่าใช้จ่ายต่อ step, cache, image generator",
+ "aimap:K_db":"async SQLAlchemy engine (อ่าน) + write_engine (เขียน run logs) + ORM read-only ของตาราง Backend ใน db/models.py · ทุก feature ที่อ่าน DB ผ่านที่นี่",
+ "aimap:K_stor":"อ่าน/เขียน GCS และสร้าง signed URL (speech, slides)",
+ "aimap:K_core":"auth.py ตรวจ Bearer แบบ constant-time, bootstrap environment + credentials (AWS Secrets Manager เมื่อรันบน server), SSH tunnel ไป Postgres/Redis ตอน local",
+ "aimap:K_cfg":"Settings มี type อ่านจาก config/default.yaml → {local,staging,production}.yaml → .env/AWS (secret) · ค่าที่ parse ไม่ได้ทำให้แอปหยุดตั้งแต่ import",
+ "aimap:B_task":"task_command: /api/tasks/ai/create|update + /sessions ตอนยืนยัน · task_query: /api/tasks/query เมื่อไม่ค้นตรง DB · ball_history: /api/tasks/history/query",
+ "aimap:B_proj":"LINE project API ของ Backend: สร้าง แก้ ลบ (archive) โปรเจกต์, เพิ่มสมาชิก, อ่านรายละเอียด, สถานะงานในโปรเจกต์",
+ "aimap:B_meet":"7 เส้น /api/calendar/* ที่ meeting tools ใช้ (Backend เป็นคนคุยกับ Google Calendar)",
+ "aimap:B_ocr":"ฝากไฟล์เข้าโปรเจกต์ (store_file), ค้นในไฟล์ (file_rag_search), หยุด OCR (interrupt), ดูงาน OCR ล่าสุด (jobs/recent)",
+ "aimap:B_sl":"metadata สไลด์ (/api/slides), ประวัติ (/slides/query), presign URL, short link",
+ "aimap:B_ev":"job_events: % และผลของงานเบื้องหลังไป /api/ai/jobs/events · callback: ผลถอดเสียงไป /api/{line/voice|meeting}/callback/ai/{success|error}",
+ "aimap:B_grp":"line_group_list: รายชื่อกลุ่มที่ active · line_group_chat: ข้อความในช่วงเวลาของรอบ (/api/line-groups/context)",
+ "aimap:B_ing":"ส่งสรุปประชุมไป host ภายนอก /api/meetings/ingest (ไม่มี token) เมื่อเปิด meeting_ingest.gate",
+ "aimap:T_org":"employees, employee_organization_positions, organization_positions, departments · AI อ่านเพื่อหาคน หัวหน้า ขอบเขตมอบงาน และผังองค์กร",
+ "aimap:T_perm":"ตาราง LEGACY ที่ AI อ่าน is_admin เป็น gate ว่าใครสร้าง/แก้/ลบโปรเจกต์ได้ (กรม หรือ admin)",
+ "aimap:T_proj":"projects, project_members, project_departments · อ่านเพื่อค้นชื่อโปรเจกต์ เช็กสมาชิก และดูโปรเจกต์ตามหน่วยงาน",
+ "aimap:T_task":"tasks (+description_embedding 512 มิติ), task_assignments, task_sources · อ่านตอนค้นงานตรง DB และตอนแสดงชื่อผู้รับ",
+ "aimap:T_sess":"ชุด review ที่ Backend เปิด (จากประชุม, กลุ่ม LINE, เสียงยาว) · AI อ่านตอนผู้ใช้กดปุ่มหรือพูดถึงชุดนั้น แล้วแก้ผ่าน PATCH /sessions",
+ "aimap:T_logs":"ตารางเดียวที่ AI เขียน: ผลสรุปต่อกลุ่มต่อรอบ + token ที่ใช้ · Backend poll ตารางนี้เพื่อเปิด review",
+ "aimap:K_hist":"key ต่อผู้ใช้ LINE เก็บ 10 turn ล่าสุด หมดอายุ 1 ชม. แบบ sliding · มี metadata ค้าง เช่นร่างที่รอยืนยัน ชุด review ที่เปิด deck สไลด์ล่าสุด",
+ "aimap:K_job":"hash ต่อ job (TTL 3 วัน) + list 20 job ล่าสุดของแต่ละคน · มีแผนย้ายเป็นตารางของ DE (docs/job-queue.md)",
+ "aimap:K_bc":"เอกสาร config ต่อ BU และต่อคน (ไม่มี TTL), set ของ BU/คนที่ตั้งไว้, สิ่งที่ turn ล่าสุดถูกปฏิเสธ (1 วัน) · branch ใหม่ย้ายไปอยู่ใต้ :sandbox:",
+ "aimap:K_meet":"operation journal ต่อผู้ใช้ (hash ของ actor) กันจองหรือแก้นัดซ้ำเมื่อ retry และให้กู้ต่อจากที่ค้าง",
+ "aimap:K_gs":"cache ผลสรุปต่อกลุ่มต่อวัน (ใช้ merge รอบถัดไป) + progress ของ batch (7 วัน)",
+ "aimap:G_in":"ไฟล์ที่ Backend เก็บไว้แล้วส่ง gs:// มา: เสียง/VTT ประชุม, เสียงและไฟล์จาก LINE · AI อ่านอย่างเดียว",
+ "aimap:G_tmp":"speech หั่นเสียงเป็น chunk ส่ง STT แล้วลบตอน cleanup (ถ้า graph พังกลางทาง cleanup ไม่รัน ไฟล์ค้าง)",
+ "aimap:G_sl":"ไฟล์ .pptx ที่ slide agent สร้าง พร้อม signed URL ให้ผู้ใช้ดาวน์โหลด",
+ "aimap:X_be":"todo-list-api · x-internal-token 2 ค่า: PROJECT_API_TOKEN (INT guard) และ CALLBACK_INTERNAL_TOKEN (AI callback guard)",
+ "aimap:X_vx":"gemini-3.1-flash-lite ทุก LLM step และ gemini-3.1-flash-image วาดรูปสไลด์ ผ่าน LiteLLM",
+ "aimap:X_lf":"self-hosted Langfuse (langfuse.kao9.dev) เก็บ trace ทุก turn",
+ "aimap:X_stt":"Google Speech-to-Text v2 chirp_3 ภาษาไทย region us",
+ "aimap:X_di":"BAAI/bge-m3 512 มิติ ฝังคำค้นของ task_search และ project_search",
+ "aimap:X_hr":"ระบบ HR ภายนอกบน railway ที่รับสรุปประชุม",
+ "aimap:X_aws":"อ่าน secret ตอนรันบน server (AWS_SECRET_ID) · local ใช้ .env"
+});
+Object.assign(DETAILS, {
+ "bemap:e_hook":"Webhook เรียก Backend ด้วย x-internal-token = INTERNAL_API_TOKEN ทุกเส้น: ส่งข้อความ/ไฟล์เข้า /api/line/inputs, resolve ผู้ใช้, ลงทะเบียน/OTP/consent, คำสั่ง admin, ดูงาน, รับทราบงาน, รายงาน usage และผลการส่งแจ้งเตือน",
+ "bemap:e_aicb":"AI เรียกด้วย x-internal-token = AI_CALLBACK_INTERNAL_TOKEN (guard แยก): บันทึกงาน, review sessions, OCR, job events, callback ถอดเสียง, metadata สไลด์, short link",
+ "bemap:e_aiint":"AI เรียกด้วย token เดียวกับที่ Webhook ใช้ (INTERNAL_API_TOKEN): ปฏิทิน, LINE project API, ค้นงาน, ข้อมูลกลุ่ม LINE, authorization ของพนักงาน · AI จึงมีสิทธิ์เท่า Webhook ทุก internal route",
+ "bemap:e_web":"เว็บเรียก /api/v1/* ด้วย Web JWT (WEB_JWT_SECRET) · WebJwtAuthGuard ตรวจ token + revocation แล้ว permission-request.ts จับคู่ route กับ permission key และ action (เฉพาะผู้ใช้ระบบ role ใหม่)",
+ "bemap:e_prov":"Zoom ส่ง webhook recording (ตรวจ x-zm-signature HMAC), MS Graph ส่ง notification (ตรวจ validationToken + clientState), Google Meet webhook รับแล้ว log อย่างเดียว",
+ "bemap:e_cron":"งานที่ไม่มีผู้เรียกจากภายนอก: @Cron 11 ตัว และ worker ของ 14 คิว Bull · ไม่มี distributed lock",
+ "bemap:e_pub":"route ที่ไม่ต้อง login: redirect short link /api/s/:token, /api/invite/resolve (throttle 10 ครั้ง/นาที), health GET /api",
+ "bemap:e_noguard":"route ที่ไม่มี guard เลยและไม่มีใครเรียกแล้ว: /api/line/chat (legacy chat สร้าง/ยืนยันงานได้), /api/ai-gateway/transcribe, /api/line-message/{task-*,daily-*}, /api/mock/ai/queue-status · ควรลบ",
+ "bemap:m_input":"เส้นเดิม LINE → AI: รับจาก Webhook ตอบ 202, เก็บไฟล์ GCS, รวมข้อความ (line-candidate-batch), แปลงเอกสาร (line-document-process), แยกเสียง (line-audio-routing), เรียก AI (line-ai-dispatch), แจ้งไฟล์พร้อม (line-media-ready-callback), ส่งผลกลับ Webhook (line-input-result-callback) · ใช้ 6 จาก 14 คิว",
+ "bemap:m_aigw":"client เดียวที่เรียก AI (Bearer AI_SERVICE_BEARER_TOKEN) · บันทึก token/ค่าใช้จ่ายลง ai_usage_logs, rate limiter, cache, รับ usage ที่ Webhook เรียก AI เอง (/internal/ai/usage)",
+ "bemap:m_voice":"รับ callback ผลถอดเสียงจาก AI (/line/voice/callback/ai/*) แล้วเปิด review + แจ้ง Webhook · คิว line-voice-ai และ /voice/process เป็นเส้นเก่า",
+ "bemap:m_task":"module ใหญ่สุดในส่วน LINE (13k บรรทัด): สร้าง/แก้งานจาก AI (/tasks/ai/*), ลูกบอลและประวัติ, รหัสงาน, หลักฐานปิดงาน, ค้นงาน, embedding (task-description-embedding + DeepInfra), daily/overdue reminder, task-command notification",
+ "bemap:m_review":"review inbox และ sessions (/tasks/ai/sessions): ชุดงานจากประชุม กลุ่ม เสียงยาว รอผู้ใช้ยืนยัน · task-review-expiry เป็น delayed job ต่อ session + cron กู้ทุก 5 นาที → auto-approve ตาม source setting · chat/ มี legacy /line/chat",
+ "bemap:m_project":"LINE project API (/line/projects/* สร้าง แก้ ลบ สมาชิก สถานะ) ที่ AI ใช้ + mapper ของเว็บ + คิว project-embedding",
+ "bemap:m_cal":"proxy ไป Google Calendar v3 ให้ AI: free-busy, available slots, ค้น/ดู/สร้าง/แก้/ยกเลิกนัด · บันทึกการสร้าง/แก้ลง calendar_meeting_*",
+ "bemap:m_meet":"รับผลประชุมจาก AI (/meeting/callback/ai/*), สร้าง MeetingDocument (MoM) และ PDF, ส่งงานเข้า review inbox ของผู้สั่ง",
+ "bemap:m_zoom":"webhook Zoom → คิว zoom-recording ดึง recording/VTT ผ่าน Zoom API ลง GCS meetings/ → สร้าง payload ส่ง AI /multi-channel · sync ผู้ใช้ Zoom ทุกวัน 02:00 · มี admin และ test-upload",
+ "bemap:m_teams":"Graph notification → คิว microsoft-teams-ingest ดึง transcript ลง GCS → ส่ง AI · ต่ออายุ subscription ทุก 6 ชม., sync ผู้ใช้ 02:15",
+ "bemap:m_ocr":"รับไฟล์จาก AI (/ocr/store_file) → คิว ocr-process: Gemini OCR บน Vertex → แบ่ง chunk → embedding → ocr_document_chunks · /file_rag_search ค้นให้ AI · sweep ทุกนาทีกู้งานค้าง",
+ "bemap:m_group":"cron 00:06 / 06:06 / 16:06 snapshot กลุ่มเป็น batch → สั่ง AI สรุป → checker ทุก 30 นาที poll ai_line_group_run_logs → claim ผลต่อกลุ่ม → review ต่อผู้สั่ง (source LINE_GROUP) · /line-groups/context ส่งข้อความให้ AI",
+ "bemap:m_jobs":"/ai/jobs/events รับ % และผลของงานเบื้องหลังจาก AI → คิว ai-job-events → Webhook push ให้ผู้ใช้ · บันทึก usage ของสไลด์เมื่อเสร็จ · /ai/jobs/recent ให้ AI ดูงาน OCR ล่าสุด",
+ "bemap:m_slides":"เก็บ metadata สไลด์ที่ AI สร้าง (slide_generations) และ short link + redirect /s/:token",
+ "bemap:m_id":"employee command API ให้ Webhook (ชื่อเล่น, ปิดบัญชี, เบอร์, import), internal-users, ลงทะเบียน, OTP ผ่าน ThaiBulkSMS, invite, consent · employee-retention 03:00 ลบ PII หลังถอน consent",
+ "bemap:m_auth":"login เว็บ (เบอร์/อีเมล + รหัสผ่าน, LINE OAuth), ลืมรหัสผ่าน, profile, web registration (throttle) · WebJwtAuthGuard + ตาราง revocation ล้างทุกชั่วโมง",
+ "bemap:m_perm":"catalog 14 permission key (NONE/PARTIAL/FULL, action × scope), permits() และ role ceiling (role-scope.ts), แผนที่ route → key (permission-request.ts) · /v1/internal/employees/:id/authorization ให้ AI อ่านสิทธิ์",
+ "bemap:m_notify":"NotificationMasterConfig ต่อ BU (ชนิด เวลา quiet hours) + scheduler ส่ง daily summary/deadline/overdue/escalation + delivery policy (จำนวนต่อวัน, quiet hours, ถือไว้เป็น preview) · ทุกข้อความไปออก Webhook",
+ "bemap:m_dash":"API ของทุกหน้าเว็บ (76 ไฟล์ 15k บรรทัด) · มี performance snapshot cron วันที่ 1 ของเดือน · /dashboard/roles/* เป็นของระบบ role เก่า",
+ "bemap:m_logs":"api_request_logs (ขาเข้า), api_outbound_logs (ขาออก), message_logs ingest จาก Webhook, business audit events",
+ "bemap:m_legacy":"line-message builders (ไม่มี guard ไม่มีใครเรียก), mock-ai, google-meet-webhook (log อย่างเดียว), S3Service (ไม่มีใคร import) · ลบได้ก่อนย้ายระบบ",
+ "bemap:sh_prisma":"PrismaService ตัวเดียวที่ทุก module ใช้เข้า DB · prisma/schema.prisma 90 model + migrations (บางตารางเป็น manual SQL)",
+ "bemap:sh_hook":"client ไป Webhook /internal/line/* (LINE_HANDLER_API_TOKEN): ผล AI, review, แจ้งเตือนทุกชนิด, job events, media-ready",
+ "bemap:sh_gcs":"GCS client + media helper · bucket เดียว GCS_BUCKET_NAME, signed URL",
+ "bemap:sh_di":"เรียก DeepInfra bge-m3 สร้าง embedding ของงาน โปรเจกต์ และ chunk OCR",
+ "bemap:sh_cfg":"secrets-loader อ่าน AWS Secrets Manager (ชื่อ todo-api-secret-dev hardcode) ทับ .env · WebApiV1 interceptor/filter/Swagger ของ /api/v1",
+ "bemap:T_org":"BU, หน่วยงาน, ตำแหน่ง, พนักงาน + ตำแหน่งของพนักงาน, ลงทะเบียน/invite/consent, คำสั่ง admin, login log, OTP, JWT revocation, import batch · AI อ่าน employees/positions/departments ตรง",
+ "bemap:T_perm":"ระบบ role ใหม่ (roles, rules, rule departments/projects, profiles, assignments, events) + employee_permission ระบบเก่า · Backend อ่านผ่าน permission-policy, AI อ่าน is_admin ตรง",
+ "bemap:T_task":"งานและทุกอย่างรอบงาน: ผู้รับ (assignments), เหตุการณ์/ลูกบอล (events), ที่มา + ไฟล์ (sources, source_media), หลักฐาน, reminder, รหัสงาน, token ของคำค้น",
+ "bemap:T_review":"task_review_sessions, line_chat_task_sessions (AI อ่าน), line_task_sessions, review inbox, setting ต่อ source (autoApproveOnExpiry), notice ที่รอ AI",
+ "bemap:T_input":"batch/item ของข้อความ LINE ที่เข้าทาง /api/line/inputs, ไฟล์เสียงและ chunk, message_logs (Webhook เขียนตรงด้วย)",
+ "bemap:T_group":"line_groups, line_group_message_logs (Webhook เขียน), summary batch + notification (Backend), ai_line_group_run_logs + _token (AI เขียน, Backend poll)",
+ "bemap:T_proj":"projects, project_departments (กองที่ถือ), project_members (OWNER / MANAGER / สมาชิก)",
+ "bemap:T_meet":"การประชุม, รอบประชุม, โปรเจกต์ที่เกี่ยว, ผู้เข้าร่วม, ไฟล์ + chunk, transcript, MoM, การสร้าง/แก้นัดในปฏิทิน, การเชื่อมผู้ให้บริการ, event ขาเข้า",
+ "bemap:T_ocr":"เอกสารที่ฝากเข้าโปรเจกต์และ chunk ข้อความ + embedding ที่ file_rag_search ใช้",
+ "bemap:T_usage":"ai_jobs, ai_usage_logs (token/ค่าใช้จ่ายทุกช่องทาง), voice_usage_logs, quota policy/account/request/role config, policy versions, package และ subscription ของ BU",
+ "bemap:T_notify":"config แจ้งเตือนต่อ BU + revision และ notification_deliveries บันทึกทุกการส่ง/ถือ/ข้าม",
+ "bemap:T_slide":"สไลด์ที่ AI สร้าง (metadata) และ short link",
+ "bemap:T_report":"performance ต่อคน, snapshot รายเดือน + metric ต่อหน่วย/คน, ไฟล์รายงานที่ export, request/outbound log, audit",
+ "bemap:Q_cand":"รวมข้อความที่ผู้ใช้พิมพ์ติดกันเป็น 1 คำขอ AI (debounce 3–15 วิ)",
+ "bemap:Q_disp":"worker เรียก AI /chat แบบ sync (timeout 120 วิ) · retry ของ gateway × Bull ทำให้เรียกซ้ำได้หลายครั้งเมื่อ AI ช้า",
+ "bemap:Q_audio":"เสียง native ≤ 5 นาทีส่ง /chat, ยาวกว่าหรือไฟล์เสียงที่อัปโหลดส่ง /multi-channel",
+ "bemap:Q_doc":"แปลง Word/PowerPoint ฯลฯ เป็น PDF ก่อนส่ง AI",
+ "bemap:Q_media":"แจ้ง Webhook ว่าไฟล์เตรียมเสร็จ (/internal/line/media-ready) พร้อม file_uri",
+ "bemap:Q_result":"ส่งผล AI กลับ Webhook (/internal/line/input-results) พร้อม reply token · 3 attempts",
+ "bemap:Q_voice":"คิวเสียงเส้นเก่าที่เรียก AI /line (stub) · ควรลบ",
+ "bemap:Q_ocr":"OCR ทีละไฟล์ด้วย Gemini แล้วทำ embedding · cron sweep ทุกนาทีกู้งานที่ค้าง",
+ "bemap:Q_rev":"delayed job ตั้งเวลาที่ expiresAt ของแต่ละ review session → auto-approve",
+ "bemap:Q_jobev":"event ของงานเบื้องหลังจาก AI รอส่งให้ Webhook push",
+ "bemap:Q_etask":"สร้าง embedding ของงานใหม่/แก้ไข ลง tasks.description_embedding",
+ "bemap:Q_eproj":"สร้าง embedding ของโปรเจกต์",
+ "bemap:Q_zoom":"ดาวน์โหลด recording/VTT จาก Zoom ลง GCS แล้วส่ง AI",
+ "bemap:Q_teams":"ดาวน์โหลด transcript จาก Graph ลง GCS แล้วส่ง AI",
+ "bemap:G_in":"line-inputs/{messageId}/original, /converted (PDF), /image · ไฟล์ที่ผู้ใช้ส่งใน LINE 1:1",
+ "bemap:G_voice":"ไฟล์เสียงจาก LINE",
+ "bemap:G_ocr":"ไฟล์ที่ AI ฝากเข้าโปรเจกต์ รอ OCR",
+ "bemap:G_group":"line-groups/{groupId}/{messageId} · ไฟล์ที่ส่งในกลุ่ม LINE (Webhook อัปผ่าน /gcs/line-groups/upload)",
+ "bemap:G_meet":"meetings/{BU}/zoom|ms/{occurrence}/audio และ /transcript · MoM",
+ "bemap:G_dash":"dashboard/{BU}/imports, organization-imports (Excel) และ reports/{job}",
+ "bemap:X_ai":"AI service: /chat, /chat/history, /multi-channel, /line-group-summary/runs, /api/message/persona (+ /line, /zoom ที่เป็น stub)",
+ "bemap:X_hook":"Webhook /internal/line/* · Backend ไม่ถือ LINE channel token จึงต้องส่งทุกข้อความผ่านที่นี่",
+ "bemap:X_gcal":"Google Calendar v3 ด้วย service account",
+ "bemap:X_zoom":"Zoom API แบบ server-to-server OAuth",
+ "bemap:X_graph":"Microsoft Graph แบบ client credentials",
+ "bemap:X_gocr":"Gemini บน Vertex AI ผ่าน @google/genai สำหรับ OCR",
+ "bemap:X_di":"DeepInfra embeddings API (bge-m3) · ต้องมิติเดียวกับที่ AI ใช้ค้น (512)",
+ "bemap:X_sms":"ThaiBulkSMS ส่ง OTP",
+ "bemap:X_line":"LINE Login (OAuth) และ profile API สำหรับเว็บ",
+ "bemap:X_aws":"AWS Secrets Manager ชื่อ todo-api-secret-* (ยัง hardcode -dev)"
+});
+Object.assign(DETAILS, {
+ "hookmap:e_line":"LINE Platform ส่งทุก event มาที่นี่ · ตรวจ x-line-signature, throttle 10 ครั้ง/วิ, ตอบ 200 ทันทีแล้วใส่คิว line-hook-inbound (IP allowlist ถูก comment ออก)",
+ "hookmap:e_be":"Backend เรียกด้วย x-internal-token (HOOK_INTERNAL_API_TOKEN): ผล AI (input-results, chat-callback), review (task-review-results, task-session-expired), แจ้งเตือนทุกชนิด, media-ready/failed, job-events",
+ "hookmap:e_legacy":"route ที่ยังเปิดแต่ไม่มีใครเรียก: chat-result, zoom/task-result, nlp/classify|add|train, line-groups/retry-files, webhook/line/verify และ task-priority-reminder ซึ่งไม่มี guard (ใครรู้ URL push LINE ได้) · ควรลบ",
+ "hookmap:e_health":"health check ของ container ไม่มี auth",
+ "hookmap:h_entry":"ตัวตัดสินเส้นทางของทุก event: follow/unfollow (ลงทะเบียน/PDPA), message (text/ไฟล์/รูป/เสียง/สติกเกอร์), postback (ปุ่ม review, รับทราบงาน, consent), join/leave กลุ่ม · resolve ผู้ใช้จาก Backend, เปิด loading, กันคนยังไม่ลงทะเบียน, คำสั่ง admin แบบตรงตัว, help",
+ "hookmap:h_proc":"ผู้ผลิตและผู้รับของ 6 คิว: inbound → (ข้อความ) conversation-batch debounce → ai-dispatch เรียก AI → delivery ส่งออก, รูปเข้า image-set, usage ส่ง Backend · attachment-wait policy ใช้ NLP ตัดสินว่ารอไฟล์แนบไหม · ทุกคิว 3 attempts",
+ "hookmap:h_chat":"line-chat.service เรียก AI /chat ตรงเมื่อเปิด LINE_HOOK_DIRECT_AI_ENABLED และเสมอสำหรับปุ่ม review (task_session_id) · ถ้า AI ตอบ 202 จะรอผลที่ /internal/line/chat-callback · ตอนปิด flag รับผลจาก Backend ที่ /internal/line/input-results",
+ "hookmap:h_task":"ประกอบข้อความแจ้งเตือนที่ Backend สั่ง: task-command (งานใหม่/ส่งต่อ/เสร็จ), daily summary + held notifications, deadline, overdue, escalation, priority reminder, review Flex card · รายงานผลการส่งกลับ Backend",
+ "hookmap:h_media":"voice/image/document/sticker: ดาวน์โหลด content จาก LINE → ส่ง multipart ให้ Backend (media-preparations หรือ /api/line/inputs/{id}/content) → เมื่อ media-ready ส่ง file_uri ต่อให้ AI · รูปหลายใบรวมผ่าน image-set",
+ "hookmap:h_group":"บันทึกกลุ่มและข้อความกลุ่มลง DB เอง, resolve ชื่อจาก mention, ส่งไฟล์กลุ่มให้ Backend เก็บ · ข้อความที่ @บอท ยังไม่ส่งถึง AI (isMentionedBot = false // TODO) การสรุปกลุ่มทำผ่าน Backend cron",
+ "hookmap:h_jobs":"push % และผลของงานเบื้องหลัง (สไลด์, ถอดเสียง) ที่ Backend ส่งมา, แจ้งเตือนโปรเจกต์, Flex builder · zoom/ เป็นของเก่า",
+ "hookmap:h_reg":"ลงทะเบียนในแชต: ขอเบอร์ → OTP → consent → ชื่อเล่น (state ที่ Backend) · คำสั่ง admin: ตั้งชื่อเล่น/suffix, ปิดบัญชี, แก้เบอร์, import พนักงานจาก Excel · business-unit status, help, PDPA",
+ "hookmap:h_nlp":"โมเดล intent ขนาดเล็ก (Jev) ตัดสินว่าข้อความนี้ควรรอไฟล์แนบก่อนส่ง AI หรือไม่ · /nlp/* สำหรับเพิ่มตัวอย่าง/train ไม่มีใครเรียก",
+ "hookmap:h_log":"เขียน message_logs ของข้อความเข้า/ออก และส่ง ingest ให้ Backend",
+ "hookmap:h_client":"ที่เดียวที่ถือ LINE channel token/secret: reply (ใช้ reply token), push, loading animation, profile, ดาวน์โหลด content, สรุปกลุ่ม · แบ่งข้อความยาว, retry, รับมือ 429 เมื่อโควตา push หมด",
+ "hookmap:h_gw":"backend-api.service: ทุกเส้นไป Backend (timeout 10 วิ, x-internal-token = INTERNAL_API_TOKEN) · ai-api.service: POST /chat ไป AI (Bearer, timeout 60 วิ, 1 ครั้ง ให้คิว retry)",
+ "hookmap:h_prisma":"PrismaService (schema มีแค่ 3 model) + guards LineSignature / InternalToken, filters, interceptors, middleware, config (AWS SM todo-webhook-secret-dev)",
+ "hookmap:T_msg":"log ข้อความ 1:1 ทุกขาเข้า/ขาออก · ตารางนี้อยู่ใน schema ของ Backend ด้วย ทั้งสองฝั่งเขียน",
+ "hookmap:T_grp":"กลุ่ม LINE ที่บอทอยู่ (เข้า/ออก, active) · Backend ใช้เลือกกลุ่มที่จะสรุป",
+ "hookmap:T_grpmsg":"ข้อความในกลุ่ม + ผู้ถูก mention · Backend ดึงช่วงเวลาให้ AI สรุปเป็นงาน",
+ "hookmap:Q_in":"ทุก event หลังตอบ LINE 200 · ทำให้ event ไม่หายเมื่อ process ตาย (ไม่ได้ dedupe redelivery)",
+ "hookmap:Q_conv":"รวมข้อความที่ผู้ใช้คนเดียวพิมพ์ติดกันเป็น 1 คำขอ (debounce)",
+ "hookmap:Q_img":"รวมรูปหลายใบที่ส่งพร้อมกันเป็นชุดเดียวก่อนส่ง AI",
+ "hookmap:Q_disp":"เรียก AI /chat เมื่อเปิด direct AI · ผลต่อไปที่คิว delivery",
+ "hookmap:Q_usage":"ส่ง token usage ของ AI call ที่ Webhook เรียกเองไป Backend /api/internal/ai/usage (idempotent ด้วย message_id)",
+ "hookmap:Q_deliv":"reply/push ไป LINE พร้อม retry",
+ "hookmap:X_line":"api.line.me/v2/bot (reply, push, loading, profile, group summary) และ api-data.line.me (content) · มีโควตา push รายเดือน",
+ "hookmap:X_be":"todo-list-api: /api/line/inputs*, /api/internal/line/*, /api/internal/ai/usage, registration, otp, consent, invite, employee, tasks/query, tasks/acknowledge, gcs/line-groups/upload, line-message/persona · เก็บไฟล์ลง GCS แทน Webhook",
+ "hookmap:X_ai":"AI /chat (Bearer AI_SERVICE_BEARER_TOKEN) · Webhook ไม่เรียก /chat/history (ส่งผ่าน Backend)"
+});
+
 /* ---------- render: ELK layered layout, lanes = partitions (left → right), wires always drawn ---------- */
 var COMMON = {chat:["c_chat_schemas","c_chat_prompt","c_chat_utils","c_chat_context","o_llm","o_kernel"]};
 var INTRA = {chat:3};   // lane whose own imports are hidden by default (utils/ → utils/: 61 of the chat wires)
@@ -703,9 +945,9 @@ var INDEX = {}, ST = {}, current = null, selected = null;
 
 SVC.forEach(function(svc){
   INDEX[svc.key] = {};
-  svc.lanes.forEach(function(lane, li){ lane.cards.forEach(function(c){ c.lane = li; INDEX[svc.key][c.id] = c; }); });
+  svc.lanes.forEach(function(lane, li){ lane.cards.forEach(function(c){ c.lane = li; c.gt = lane.h; INDEX[svc.key][c.id] = c; }); });
   if (svc.groups) {   // grouped tab: boxes and frames both addressable; 'to' comes from the edge list
-    svc.groups.forEach(function(g){ INDEX[svc.key][g.id] = {t:g.t, to:[]}; g.nodes.forEach(function(n){ n.to = []; INDEX[svc.key][n.id] = n; }); });
+    svc.groups.forEach(function(g){ INDEX[svc.key][g.id] = {t:g.t+' (ทั้งกรอบ)', gt:g.t, to:[]}; g.nodes.forEach(function(n){ n.to = []; n.gt = g.t; INDEX[svc.key][n.id] = n; }); });
     svc.edges.forEach(function(e){ INDEX[svc.key][e[0]].to.push(e[1]); });
   }
   var b = document.createElement('button');
@@ -883,7 +1125,7 @@ function rounded(p, r){
 }
 function zoom(key, s){
   var st = ST[key]; if (!st || !st.laid) return;
-  st.scale = Math.max(.25, Math.min(1.6, s));
+  st.scale = Math.max(.15, Math.min(3, s));
   var c = document.getElementById('c-'+key); c.style.transform = 'scale('+st.scale+')';
   var sz = c.parentNode; sz.style.width = (st.W*st.scale)+'px'; sz.style.height = (st.H*st.scale)+'px';
   document.getElementById('zval').textContent = Math.round(st.scale*100)+'%';
@@ -892,6 +1134,56 @@ function fit(key){
   var st = ST[key], stage = document.getElementById('s-'+key);
   zoom(key, Math.min(1, (stage.clientWidth-8)/st.W));
 }
+// zoom keeping the diagram point under (clientX, clientY) still; without a point, the stage centre
+function zoomAt(key, s, clientX, clientY){
+  var st = ST[key], stage = document.getElementById('s-'+key); if (!st || !st.laid) return;
+  var r = stage.getBoundingClientRect();
+  var ox = clientX == null ? stage.clientWidth/2 : clientX - r.left, oy = clientY == null ? stage.clientHeight/2 : clientY - r.top;
+  var px = (stage.scrollLeft + ox) / st.scale, py = (stage.scrollTop + oy) / st.scale;
+  zoom(key, s);
+  stage.scrollLeft = px*st.scale - ox; stage.scrollTop = py*st.scale - oy;
+}
+var drag = null, dragMoved = false, touches = {};
+function stageOf(e){ var s = e.target.closest && e.target.closest('.stage'); return s && s.id === 's-'+current ? s : null; }
+panels.addEventListener('wheel', function(e){   // pinch on a trackpad arrives as ctrl+wheel; a plain wheel keeps scrolling
+  var stage = stageOf(e); if (!stage || !(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  zoomAt(current, ST[current].scale * Math.exp(-e.deltaY * 0.0025), e.clientX, e.clientY);
+}, {passive:false});
+panels.addEventListener('dblclick', function(e){
+  var stage = stageOf(e); if (!stage || e.target.closest('.node')) return;
+  zoomAt(current, ST[current].scale * (e.shiftKey ? 1/1.6 : 1.6), e.clientX, e.clientY);
+});
+panels.addEventListener('pointerdown', function(e){
+  var stage = stageOf(e); if (!stage) return;
+  touches[e.pointerId] = {x:e.clientX, y:e.clientY};
+  var ids = Object.keys(touches);
+  if (ids.length === 2) {   // two fingers: pinch
+    var a = touches[ids[0]], b = touches[ids[1]];
+    drag = {pinch:true, d:Math.hypot(a.x-b.x, a.y-b.y), s:ST[current].scale}; dragMoved = true; return;
+  }
+  if (e.button !== 0 || e.target.closest('.node')) return;
+  drag = {x:e.clientX, y:e.clientY, l:stage.scrollLeft, t:stage.scrollTop, stage:stage}; dragMoved = false;
+});
+window.addEventListener('pointermove', function(e){
+  if (touches[e.pointerId]) touches[e.pointerId] = {x:e.clientX, y:e.clientY};
+  if (!drag) return;
+  if (drag.pinch) {
+    var ids = Object.keys(touches); if (ids.length < 2) return;
+    var a = touches[ids[0]], b = touches[ids[1]];
+    zoomAt(current, drag.s * Math.hypot(a.x-b.x, a.y-b.y) / drag.d, (a.x+b.x)/2, (a.y+b.y)/2); return;
+  }
+  var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!dragMoved && Math.abs(dx) + Math.abs(dy) < 4) return;
+  dragMoved = true; drag.stage.classList.add('panning');
+  drag.stage.scrollLeft = drag.l - dx; drag.stage.scrollTop = drag.t - dy;
+});
+function endDrag(e){
+  delete touches[e.pointerId];
+  if (drag && drag.stage) drag.stage.classList.remove('panning');
+  if (!Object.keys(touches).length) drag = null;
+}
+window.addEventListener('pointerup', endDrag); window.addEventListener('pointercancel', endDrag);
 function show(key, push){
   SVC.forEach(function(s){
     var on = s.key===key;
@@ -928,27 +1220,42 @@ function select(id){
   st.wires.forEach(function(w){ if (w.dataset.s===id) w.classList.add('out'); if (w.dataset.t===id) w.classList.add('in'); });
   st.wires.filter(function(w){ return w.dataset.s===id || w.dataset.t===id; }).forEach(function(w){ w.parentNode.appendChild(w); });
   info.innerHTML = '<b>'+esc(c.t)+'</b> · เรียก/ใช้ '+outs.length+' · ถูกเรียกจาก '+ins.length;
-  function links(list, cls){ return list.length ? '<div class="links">'+list.map(function(x){ return '<button class="'+cls+'" data-go="'+x+'">'+esc(INDEX[current][x].t)+'</button>'; }).join('')+'</div>' : '<p class="empty">—</p>'; }
-  dt.innerHTML = '<h3>'+esc(c.t)+'</h3>'+(c.p?'<div class="path">'+esc(c.p)+'</div>':'')+(c.s?'<div class="path">'+esc(c.s)+'</div>':'')
-    + (c.i&&c.i.length?'<ul>'+c.i.map(function(x){ return '<li>'+item(x)+'</li>'; }).join('')+'</ul>':'')
-    + (c.tags?'<div class="tags" style="display:flex;gap:4px;flex-wrap:wrap">'+c.tags.map(function(t){return '<span class="tag '+(t[1]||'')+'">'+esc(t[0])+'</span>';}).join('')+'</div>':'')
-    + '<h5>เรียก / ใช้ ('+outs.length+')</h5>'+links(outs,'out')
-    + '<h5>ถูกเรียกจาก ('+ins.length+')</h5>'+links(ins,'in');
+  function grouped(list, cls){   // links bucketed by the frame / lane the other box sits in
+    if (!list.length) return '<p class="empty">—</p>';
+    var by = {}, order = [];
+    list.forEach(function(x){ var g = INDEX[current][x].gt || 'อื่น ๆ'; if (!by[g]) { by[g] = []; order.push(g); } by[g].push(x); });
+    return order.map(function(g){ return '<div class="lg"><div class="lgt">'+esc(g)+' · '+by[g].length+'</div><div class="links">'
+      + by[g].map(function(x){ return '<button class="'+cls+'" data-go="'+x+'">'+esc(INDEX[current][x].t)+'</button>'; }).join('')+'</div></div>'; }).join('');
+  }
+  function frames(list){ var seen = {}; list.forEach(function(x){ seen[INDEX[current][x].gt || 'อื่น ๆ'] = 1; }); return Object.keys(seen); }
+  var note = DETAILS[current+':'+id], isData = !!(c.cyl || c.db);
+  var summary = esc(c.t)+' อยู่ใน “'+esc(c.gt||'—')+'”'
+    + (outs.length ? ' · '+(isData?'ใช้':'เรียก/ใช้')+' '+outs.length+' รายการ จาก '+frames(outs).map(esc).join(', ') : ' · ไม่เรียกส่วนอื่น')
+    + (ins.length ? ' · '+(isData?'ถูกอ่าน/เขียนโดย':'ถูกเรียกจาก')+' '+ins.length+' รายการ จาก '+frames(ins).map(esc).join(', ') : ' · ไม่มีส่วนไหนเรียกเข้ามา');
+  dt.innerHTML = (c.gt?'<div class="where">'+esc(c.gt)+'</div>':'')+'<h3>'+esc(c.t)+'</h3>'
+    + (c.p?'<div class="path">'+esc(c.p)+'</div>':'')+(c.s?'<div class="path">'+esc(c.s)+'</div>':'')
+    + (c.tags?'<div class="tags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">'+c.tags.map(function(t){return '<span class="tag '+(t[1]||'')+'">'+esc(t[0])+'</span>';}).join('')+'</div>':'')
+    + (note?'<h5>รายละเอียด</h5><p class="note2">'+esc(note)+'</p>':'')
+    + (c.i&&c.i.length?'<h5>'+(isData?'เก็บอะไร':'ทำอะไร / มีอะไร')+'</h5><ul>'+c.i.map(function(x){ return '<li>'+item(x)+'</li>'; }).join('')+'</ul>':'')
+    + '<h5>'+(isData?'ใครอ่าน / เขียนตัวนี้':'ถูกเรียกจาก')+' ('+ins.length+')</h5>'+grouped(ins,'in')
+    + '<h5>'+(isData?'ตัวนี้ใช้':'เรียก / ใช้')+' ('+outs.length+')</h5>'+grouped(outs,'out')
+    + '<h5>สรุป</h5><p class="summary">'+summary+'</p>';
 }
 panels.addEventListener('click', function(e){
   var go = e.target.closest('[data-go]');
   if (go){ var id = go.dataset.go; select(id); var nd = ST[current].nodes[id].el; nd.scrollIntoView({block:'center', inline:'center', behavior:'smooth'}); return; }
   var n = e.target.closest('.node');
   if (n) { select(selected===n.dataset.id ? null : n.dataset.id); return; }
-  if (e.target.closest('.stage')) select(null);
+  if (e.target.closest('.stage') && !dragMoved) select(null);
+  dragMoved = false;
 });
 panels.addEventListener('keydown', function(e){
   var n = e.target.closest && e.target.closest('.node');
   if (n && (e.key==='Enter'||e.key===' ')) { e.preventDefault(); select(selected===n.dataset.id ? null : n.dataset.id); }
 });
 document.addEventListener('keydown', function(e){ if (e.key==='Escape') select(null); });
-document.getElementById('zin').onclick = function(){ zoom(current, (ST[current].scale||1)*1.2); };
-document.getElementById('zout').onclick = function(){ zoom(current, (ST[current].scale||1)/1.2); };
+document.getElementById('zin').onclick = function(){ zoomAt(current, (ST[current].scale||1)*1.25); };
+document.getElementById('zout').onclick = function(){ zoomAt(current, (ST[current].scale||1)/1.25); };
 document.getElementById('zfit').onclick = function(){ fit(current); };
 document.getElementById('z100').onclick = function(){ zoom(current, 1); };
 document.getElementById('common').onchange = document.getElementById('intra').onchange = function(){ var k=current; ST[k].laid=false; ST[k].scale=null; layout(k).then(function(){ select(null); }); };
