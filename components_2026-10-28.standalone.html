@@ -94,6 +94,14 @@ button:focus-visible,.node:focus-visible,input:focus-visible{outline:2px solid v
 .notes ul{margin:0;padding-left:18px}
 .notes li{margin:3px 0;max-width:130ch}
 .msg{padding:24px;color:var(--muted)}
+.elabel{position:absolute;width:max-content;max-width:150px;font-size:11px;line-height:1.3;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;pointer-events:none;z-index:1}
+.focus .elabel{opacity:.15}.focus .elabel.out{opacity:1;color:var(--hl);border-color:var(--hl)}.focus .elabel.in{opacity:1;color:var(--hl-in);border-color:var(--hl-in)}
+.node.person{border-radius:22px;padding-left:38px}
+.node.person::before{content:"";position:absolute;left:12px;top:9px;width:16px;height:16px;border-radius:50%;border:2px solid var(--c)}
+.node.system{border:2px solid var(--c);border-left-width:6px;font-size:13px;padding:10px 14px}
+.node.system h4{font-size:16px}
+.detail .lbl{color:var(--muted)}
+.node .sysl{margin:6px 0 0;padding-left:16px;font-size:12px;line-height:1.45}
 .stage.panning{cursor:grabbing;user-select:none}
 .zhint{font-size:12px;color:var(--muted)}
 [hidden]{display:none!important}
@@ -143,6 +151,82 @@ button:focus-visible,.node:focus-visible,input:focus-visible{outline:2px solid v
 <script>
 /* Data: one entry per service. lanes[].cards[]: id, t (title), p (path), s (size), c (color var), i (items), to (ids this card calls/uses), tags [[text, kind]] */
 var SVC = [
+{ key:"ctx", name:"System context", color:"--accent", labelled:true, gap:60,
+  sum:"ระดับบนสุด (C4 level 1): ระบบ ToDoList (น้องลิสท์) เป็นกล่องเดียว ไม่แตกข้างใน · ซ้ายคือคนที่ใช้ระบบ ถัดมาคือช่องทางที่คนใช้เข้าถึง ขวาคือระบบภายนอกที่ระบบเรียก · คำบนเส้นบอกว่าเส้นนั้นส่งอะไร · ข้างในระบบ (4 service + PostgreSQL, Redis, GCS) ดูที่ tab “ภาพรวมทั้งระบบ”",
+  lanes:[
+   { h:"คนที่ใช้ระบบ", w:220, cards:[
+     {id:"P_staff", t:"พนักงาน", person:true, c:"--fe", i:["สั่งงาน รับงาน ส่งต่อ ปิดงาน ถามสถานะ นัดประชุม ผ่าน LINE"],
+      to:["X_line","X_meet"], lbl:{X_line:"แชต สั่งงาน ส่งไฟล์/เสียง กดปุ่ม", X_meet:"ประชุม"}},
+     {id:"P_exec", t:"ผู้บริหาร / หัวหน้าหน่วย", person:true, c:"--fe", i:["สั่งงานใน LINE + ดู dashboard, KPI, รายงานบนเว็บ"],
+      to:["X_line","X_web"], lbl:{X_line:"สั่งงาน ถามสถานะ", X_web:"ดู dashboard, รายงาน"}},
+     {id:"P_admin", t:"admin / เลขา", person:true, c:"--fe", i:["จัดการผู้ใช้ โครงสร้าง สิทธิ์ โควตา แจ้งเตือน บนเว็บ · สร้างโปรเจกต์"],
+      to:["X_web"], lbl:{X_web:"ตั้งค่าผู้ใช้ สิทธิ์ โควตา แจ้งเตือน"}},
+     {id:"P_dev", t:"ทีมพัฒนา / tester", person:true, c:"--fe", i:["ทดสอบ bot config, วัดคุณภาพการค้นหา, ดู trace"],
+      to:["S_todo","X_lf"], lbl:{S_todo:"/console, eval API", X_lf:"ดู trace"}}]},
+   { h:"ช่องทางที่คนใช้", w:210, cards:[
+     {id:"X_line", t:"LINE", p:"Messaging API · LINE OA", c:"--ext", i:["แชต 1:1, กลุ่ม, ไฟล์ เสียง รูป, ปุ่ม Flex"],
+      to:["S_todo"], lbl:{S_todo:"webhook event (ข้อความ ไฟล์ postback)"}},
+     {id:"X_web", t:"Web browser", c:"--ext", i:["dashboard ของระบบ"], to:["S_todo"], lbl:{S_todo:"HTTPS + JWT (/api/v1)"}},
+     {id:"X_meet", t:"Zoom · Microsoft Teams", p:"Zoom API · MS Graph", c:"--ext", i:["ห้องประชุมออนไลน์ที่ระบบดึง recording / transcript"],
+      to:["S_todo"], lbl:{S_todo:"webhook: ประชุมจบ / มี transcript"}}]},
+   { h:"ระบบของเรา", w:330, cards:[
+     {id:"S_todo", t:"ToDoList · น้องลิสท์ (เลขา AI)", system:true, c:"--accent", i:[
+       "รับคำสั่งงานภาษาคนทาง LINE แล้วสร้าง มอบ ส่งต่อ ติดตามงาน",
+       "ถอดเสียงประชุมและไฟล์เสียง สรุปเป็นงาน + MoM ให้ตรวจก่อนส่ง",
+       "สรุปงานจากกลุ่ม LINE ตามรอบ, นัดประชุมในปฏิทิน",
+       "ทำสไลด์, เก็บไฟล์โปรเจกต์และตอบคำถามจากไฟล์",
+       "แจ้งเตือนรายวัน เลยกำหนด และ dashboard สำหรับผู้บริหาร",
+       "ข้างใน: Webhook · Backend · AI · Frontend + PostgreSQL · Redis · GCS"],
+      to:["X_line","X_meet","X_gcal","X_vertex","X_stt","X_gcp","X_di","X_linelogin","X_sms","X_hr","X_lf","X_aws"],
+      lbl:{X_line:"ตอบ, push แจ้งเตือน, Flex review", X_meet:"ดึง recording, sync ผู้ใช้", X_gcal:"นัด แก้ ยกเลิก, free-busy",
+           X_vertex:"สั่งงาน AI ทุกขั้น, OCR", X_stt:"ไฟล์เสียง → ข้อความ", X_gcp:"เก็บ/อ่านไฟล์", X_di:"ข้อความ → vector",
+           X_linelogin:"ตรวจ id token", X_sms:"ส่ง OTP", X_hr:"สรุปประชุม", X_lf:"trace + token", X_aws:"อ่าน secret"}}]},
+   { h:"ระบบภายนอกที่ระบบเรียก", w:210, cards:[
+     {id:"X_gcal", t:"Google Calendar", c:"--ext", i:["ปฏิทินนัดประชุม"]},
+     {id:"X_vertex", t:"Google Vertex AI (Gemini)", c:"--ext", i:["LLM, OCR, วาดรูป"]},
+     {id:"X_stt", t:"Google Speech-to-Text", c:"--ext", i:["ถอดเสียงภาษาไทย chirp_3"]},
+     {id:"X_gcp", t:"Google Cloud Storage", c:"--ext", i:["เก็บไฟล์ เสียง สไลด์ (ระบบเป็นเจ้าของ bucket)"]},
+     {id:"X_di", t:"DeepInfra", c:"--ext", i:["embedding bge-m3"]},
+     {id:"X_linelogin", t:"LINE Login", c:"--ext", i:["login เว็บ"]},
+     {id:"X_sms", t:"ThaiBulkSMS", c:"--ext", i:["OTP"]},
+     {id:"X_hr", t:"ระบบ HR (meeting ingest)", c:"--ext", i:["รับสรุปประชุม"]},
+     {id:"X_lf", t:"Langfuse", c:"--ext", i:["trace การทำงานของ AI"]},
+     {id:"X_aws", t:"AWS Secrets Manager", c:"--ext", i:["secret ของระบบ"]}]}
+  ]},
+{ key:"cont", name:"Container view", color:"--accent", labelled:true, gap:60,
+  sum:"ภาพเดียวของระบบปัจจุบัน: ผู้ใช้ → Webhook / Frontend / Zoom → Backend ⇄ AI → ที่เก็บข้อมูล (PostgreSQL, Redis, GCS) → บริการภายนอก · คำบนเส้นบอกว่าคุยกันด้วยอะไร · กดกล่องเพื่อดูรายละเอียด · ส่วนประกอบข้างในของแต่ละกล่องดูที่ tab “ภาพรวมทั้งระบบ” และ tab แบบกลุ่ม",
+  lanes:[
+   { h:"ผู้ใช้", w:180, cards:[
+     {id:"U", t:"ผู้ใช้ LINE OA", c:"--ext", i:["แชต 1:1 · กลุ่ม · ไฟล์ เสียง รูป · ปุ่ม Flex"],
+      to:["H"], lbl:{H:"webhook event"}},
+     {id:"WU", t:"ผู้ใช้เว็บ", c:"--ext", i:["admin · ผู้บริหาร · เลขา"], to:["F"], lbl:{F:"browser"}}]},
+   { h:"ทางเข้า", w:200, cards:[
+     {id:"H", t:"Webhook", p:"todo-list-webhook · NestJS", c:"--hook", i:["รับ LINE ตอบ 200 แล้วเข้าคิว · ผู้เดียวที่ reply/push LINE"],
+      to:["U","B","A","PG","RB"],
+      lbl:{U:"reply / push", B:"x-internal-token (/api/line/inputs, users, registration)", A:"/chat (direct · ปุ่ม review)", PG:"message_logs · line_groups", RB:"line-hook-* 6 คิว"}},
+     {id:"F", t:"Frontend", p:"todo-list-front · Nuxt SPA", c:"--fe", i:["dashboard · users · สิทธิ์ · โควตา · แจ้งเตือน"],
+      to:["B"], lbl:{B:"JWT /api/v1"}},
+     {id:"Z", t:"Zoom / MS Graph", c:"--ext", i:["ประชุมจบ / มี transcript"], to:["B"], lbl:{B:"webhook"}}]},
+   { h:"Backend", w:210, cards:[
+     {id:"B", t:"Backend", p:"todo-list-api · NestJS + Prisma", c:"--be", i:["เจ้าของข้อมูล · คิว · cron · review · แจ้งเตือน · dashboard API"],
+      to:["H","A","PG","RB","G","VX","DI","GC"],
+      lbl:{H:"/internal/line/* (ผล AI · แจ้งเตือน)", A:"Bearer (/chat · /multi-channel · group summary · persona)", PG:"เจ้าของ schema 90 ตาราง", RB:"14 คิว Bull",
+           G:"เก็บไฟล์ LINE · ประชุม · OCR", VX:"OCR", DI:"embedding งาน · โปรเจกต์ · OCR", GC:"นัดประชุม"}}]},
+   { h:"AI", w:210, cards:[
+     {id:"A", t:"AI", p:"todo-list-ai · FastAPI + LangGraph", c:"--ai", i:["chat agent · ถอดเสียง · สรุปกลุ่ม · persona"],
+      to:["B","PG","RA","G","VX","DI"],
+      lbl:{B:"tools + callback (x-internal-token)", PG:"อ่านคน งาน โปรเจกต์ · เขียน run logs", RA:"chat history · jobs · bot_config",
+           G:"อ่านไฟล์ · เขียนสไลด์", VX:"LLM ทุก step + STT", DI:"query embedding"}}]},
+   { h:"ที่เก็บข้อมูล", w:210, cards:[
+     {id:"PG", t:"PostgreSQL", p:"ai_skr + pg_trgm + pgvector", db:true, c:"--store", i:["instance เดียว · Backend เป็นเจ้าของ schema · Webhook และ AI อ่าน/เขียนตรงบางตาราง"]},
+     {id:"RB", t:"Redis · Bull", db:true, c:"--store", i:["คิวของ Webhook (6) และ Backend (14)"]},
+     {id:"RA", t:"Redis · AI state", p:"REDIS_KEY_PREFIX", db:true, c:"--store", i:["ประวัติแชต · job · bot_config · journal การนัด · group summary"]},
+     {id:"G", t:"GCS", p:"bucket เดียว", db:true, c:"--store", i:["line-inputs · voice · line-groups · meetings · ocr · dashboard · slides"]}]},
+   { h:"บริการภายนอก", w:200, cards:[
+     {id:"VX", t:"Vertex Gemini + STT", c:"--ext", i:["gemini-3.1-flash-lite · chirp_3 · Gemini OCR"]},
+     {id:"DI", t:"DeepInfra", c:"--ext", i:["bge-m3 512 มิติ"]},
+     {id:"GC", t:"Google Calendar", c:"--ext", i:["free-busy · สร้าง แก้ ยกเลิกนัด"]}]}
+  ]},
 { key:"sys", name:"ภาพรวมทั้งระบบ", color:"--accent",
   sum:"ทุกส่วนของระบบในภาพเดียว: กรอบละ 1 ส่วน (ผู้เรียกจากภายนอก · Frontend · Webhook · Backend · AI · PostgreSQL · Redis · GCS · บริการภายนอก) กล่องข้างในคือองค์ประกอบหลักของส่วนนั้น เส้นคือการเรียกข้ามระบบ และการอ่าน/เขียนตาราง คิว และ prefix · PostgreSQL เป็น instance เดียว schema ของ Backend แต่ Webhook และ AI อ่าน/เขียนตรงบางตาราง · Redis แยกด้วย key prefix ต่อ service (ใช้ instance เดียวกันหรือไม่ขึ้นกับ config แต่ละ env) · รายละเอียดราย service ดูที่ tab แบบกลุ่มของแต่ละ service",
   groups:[
@@ -934,6 +1018,44 @@ Object.assign(DETAILS, {
  "hookmap:X_ai":"AI /chat (Bearer AI_SERVICE_BEARER_TOKEN) · Webhook ไม่เรียก /chat/history (ส่งผ่าน Backend)"
 });
 
+Object.assign(DETAILS, {
+ "ctx:P_staff":"ผู้ใช้หลัก ราว 300 บัญชีต่อหน่วยงาน (ตาม TOR) ใช้ผ่าน LINE อย่างเดียว ไม่ต้องเปิดเว็บ: พิมพ์หรือพูดสั่งงาน, รับแจ้งเตือนและกดรับทราบ, ส่งต่องาน, ปิดงานพร้อมหลักฐาน, ถามว่ามีงานอะไร, ตรวจชุดงานจากประชุมก่อนส่ง · ต้องลงทะเบียนด้วยเบอร์ + OTP + consent ก่อนใช้",
+ "ctx:P_exec":"ใช้ทั้ง 2 ช่องทาง: LINE สำหรับสั่งงานและถามสถานะของหน่วย, เว็บสำหรับภาพรวม KPI ผลงานรายคน/หน่วย และรายงาน · สิทธิ์เห็นข้อมูลตามระดับและ permission role ที่ admin ตั้ง",
+ "ctx:P_admin":"ดูแลระบบบนเว็บ: นำเข้าผู้ใช้และโครงสร้างองค์กรจาก Excel, ตั้ง permission role, โควตา AI, การแจ้งเตือนต่อหน่วยงาน, ดู audit log · ในแชตใช้คำสั่ง admin ได้ (ตั้งชื่อเล่น ปิดบัญชี) และเป็นหนึ่งในคนที่สร้างโปรเจกต์ได้",
+ "ctx:P_dev":"ไม่ใช่ผู้ใช้ปลายทาง: ใช้ /console ทดสอบสิทธิ์ของบอทแบบ sandbox, /api/evaluate/search/* วัดคุณภาพการค้นหา และดู trace การทำงานของ AI ใน Langfuse",
+ "ctx:X_line":"ช่องทางหลักของผู้ใช้ · LINE ส่ง event ทุกอย่างมาที่ระบบ (webhook) และระบบตอบหรือ push กลับ · มีโควตา push ต่อเดือนตามแพ็กเกจ OA · ระบบเป็นผู้เดียวที่ถือ channel token",
+ "ctx:X_meet":"ผู้ใช้ประชุมใน Zoom หรือ Teams ตามปกติ เมื่อจบ ผู้ให้บริการแจ้งระบบ แล้วระบบไปดึง recording / transcript มาถอดเสียงและสรุป · Google Meet ยังไม่รองรับ (webhook รับแล้ว log เฉย ๆ)",
+ "ctx:X_web":"dashboard แบบ SPA เปิดใน browser เรียก API ของระบบด้วย JWT · login ด้วยเบอร์/อีเมล + รหัสผ่าน หรือ LINE Login",
+ "ctx:S_todo":"ระบบเดียวในมุมมองผู้ใช้ แต่ข้างในคือ 4 service (Webhook รับ/ส่ง LINE, Backend เจ้าของข้อมูลและงานตามรอบ, AI ภาษาธรรมชาติและถอดเสียง, Frontend เว็บ) ใช้ PostgreSQL, Redis, GCS ร่วมกัน · ดูส่วนประกอบข้างในที่ tab “ภาพรวมทั้งระบบ”",
+ "ctx:X_gcal":"ระบบใช้ service account อ่าน free-busy, หาช่วงว่าง, สร้าง แก้ ยกเลิกนัด ให้ผู้ใช้สั่งผ่านแชต",
+ "ctx:X_vertex":"Gemini 3.1 flash-lite เป็นสมองของบอททุกขั้น (เข้าใจคำสั่ง, สกัดงาน, สรุปประชุม/กลุ่ม, จัดอันดับผลค้น, persona) · flash-image วาดรูปในสไลด์ · ใช้ OCR เอกสารด้วย · เป็นค่าใช้จ่ายหลักของระบบ",
+ "ctx:X_stt":"Speech-to-Text v2 โมเดล chirp_3 ภาษาไทย ถอดเสียงประชุมและไฟล์เสียงจาก LINE",
+ "ctx:X_gcp":"bucket เดียวของระบบเก็บไฟล์จาก LINE, recording ประชุม, เอกสาร OCR, ไฟล์ import และสไลด์ · ในมุม context เป็น infra ที่ระบบเช่าใช้ (ข้อมูลเป็นของระบบ)",
+ "ctx:X_di":"แปลงข้อความงาน โปรเจกต์ และเอกสารเป็น vector (bge-m3 512 มิติ) เพื่อค้นแบบความหมาย",
+ "ctx:X_linelogin":"OAuth ของ LINE ให้ผู้ใช้ login เว็บด้วยบัญชี LINE ที่ผูกไว้",
+ "ctx:X_sms":"ส่ง OTP ตอนลงทะเบียนและลืมรหัสผ่าน",
+ "ctx:X_hr":"ระบบภายนอกที่รับสรุปประชุมไปเก็บ (เปิด/ปิดด้วย meeting_ingest.gate)",
+ "ctx:X_lf":"self-hosted Langfuse เก็บ trace ทุก turn ของบอท พร้อม token และค่าใช้จ่าย · ทีมพัฒนาใช้ดูว่าบอทคิดอะไร",
+ "ctx:X_aws":"ทุก service อ่าน secret (token, รหัสฐานข้อมูล, key) ตอนรันบน server"
+});
+
+Object.assign(DETAILS, {
+ "cont:U":"พนักงานและผู้บริหารที่คุยกับบอททาง LINE OA · ทุกข้อความ ไฟล์ เสียง และการกดปุ่ม ส่งเป็น webhook event ไปที่ Webhook ที่เดียว",
+ "cont:WU":"admin เลขา และผู้บริหาร เปิดเว็บ dashboard เพื่อจัดการผู้ใช้ โครงสร้าง สิทธิ์ โควตา การแจ้งเตือน และดูรายงาน",
+ "cont:H":"ตรวจ x-line-signature ตอบ LINE 200 ทันทีแล้วทำงานในคิว Bull 6 คิว · ส่งข้อความเข้า Backend (/api/line/inputs) หรือเรียก AI /chat ตรงเมื่อเปิด LINE_HOOK_DIRECT_AI_ENABLED และเสมอสำหรับปุ่ม review · เขียน message_logs และ log กลุ่มลง PostgreSQL เอง · ไม่แตะ GCS (ส่งไฟล์ให้ Backend เก็บ) · ไม่มี cron",
+ "cont:F":"Nuxt SPA แบบ static เรียก Backend /api/v1 ตรงจาก browser ด้วย JWT · ไม่มี server ของตัวเองและไม่เรียก AI",
+ "cont:Z":"Zoom และ MS Graph แจ้ง Backend เมื่อการประชุมจบหรือมี transcript · Backend ไปดึง recording/transcript เองแล้วส่งให้ AI ถอดเสียง",
+ "cont:B":"เจ้าของ schema PostgreSQL ทั้งหมดและ bucket GCS · รับข้อความจาก Webhook แล้วเรียก AI (Bearer), รับ tool call และ callback จาก AI (x-internal-token), จัดคิว 14 คิวและ cron 11 ตัว, review + auto-approve, แจ้งเตือนทุกชนิดผ่าน Webhook, API ของเว็บ, proxy ปฏิทิน, OCR",
+ "cont:A":"FastAPI + LangGraph · /chat ตอบ sync (agent 40 tools บันทึกงานผ่าน Backend), /multi-channel ถอดเสียง 202 + callback, สรุปกลุ่มตามรอบ, persona · อ่าน PostgreSQL ตรงเพื่อหาคน งาน โปรเจกต์ และเขียน ai_line_group_run_logs · state อยู่ใน Redis · งานนานไม่มีคิวกลาง",
+ "cont:PG":"instance เดียว ฐาน ai_skr 90 ตาราง (Prisma ของ Backend) · Webhook เขียน 3 ตาราง (message_logs, line_groups, line_group_message_logs) · AI อ่านตารางคน งาน โปรเจกต์ sessions และเขียน run logs · ใช้ pg_trgm และ pgvector สำหรับค้นหา",
+ "cont:RB":"คิว Bull: Webhook 6 คิว (line-hook-*) และ Backend 14 คิว (LINE input, OCR, review expiry, job events, embedding, Zoom, Teams) · Backend ใช้ Redis เป็นคิวอย่างเดียว",
+ "cont:RA":"key ของ AI ขึ้นต้นด้วย REDIS_KEY_PREFIX: ประวัติแชต (TTL 1 ชม.), job record ของ slide/voice, config สิทธิ์ของบอท, journal การนัดประชุม, cache และ progress ของ group summary · อาจเป็น instance เดียวกับ Bull แยกด้วย prefix ขึ้นกับ config ของแต่ละ env",
+ "cont:G":"bucket เดียว (GCS_BUCKET_NAME) · Backend เขียน line-inputs/, voice-messages/, line-groups/, meetings/, ocr-inputs/, dashboard/ · AI อ่านไฟล์เหล่านี้ผ่าน gs:// และเขียน slides/ กับ chunk เสียงชั่วคราว",
+ "cont:VX":"AI ใช้ gemini-3.1-flash-lite ทุก LLM step + flash-image วาดรูปสไลด์ + Google STT chirp_3 ถอดเสียง · Backend ใช้ Gemini ทำ OCR",
+ "cont:DI":"Backend ฝังข้อความงาน โปรเจกต์ และ chunk OCR ตอนบันทึก · AI ฝังคำค้นตอนค้น · ต้องเป็นโมเดลและมิติเดียวกัน (bge-m3, 512)",
+ "cont:GC":"Backend ใช้ service account อ่าน free-busy และสร้าง แก้ ยกเลิกนัดตามที่ AI สั่งผ่าน /api/calendar/*"
+});
+
 /* ---------- render: ELK layered layout, lanes = partitions (left → right), wires always drawn ---------- */
 var COMMON = {chat:["c_chat_schemas","c_chat_prompt","c_chat_utils","c_chat_context","o_llm","o_kernel"]};
 var INTRA = {chat:3};   // lane whose own imports are hidden by default (utils/ → utils/: 61 of the chat wires)
@@ -941,14 +1063,15 @@ var tabs = document.getElementById('tabs'), panels = document.getElementById('pa
 var elk = (typeof ELK !== 'undefined') ? new ELK() : null;
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function item(s){ return esc(s).replace(/&lt;code&gt;/g,'<code>').replace(/&lt;\/code&gt;/g,'</code>'); }
-var INDEX = {}, ST = {}, current = null, selected = null;
+var INDEX = {}, ST = {}, LBL = {}, current = null, selected = null;
 
 SVC.forEach(function(svc){
   INDEX[svc.key] = {};
-  svc.lanes.forEach(function(lane, li){ lane.cards.forEach(function(c){ c.lane = li; c.gt = lane.h; INDEX[svc.key][c.id] = c; }); });
+  svc.lanes.forEach(function(lane, li){ lane.cards.forEach(function(c){ c.lane = li; c.gt = lane.h; INDEX[svc.key][c.id] = c;
+    Object.keys(c.lbl||{}).forEach(function(t){ LBL[svc.key+':'+c.id+'>'+t] = c.lbl[t]; }); }); });
   if (svc.groups) {   // grouped tab: boxes and frames both addressable; 'to' comes from the edge list
     svc.groups.forEach(function(g){ INDEX[svc.key][g.id] = {t:g.t+' (ทั้งกรอบ)', gt:g.t, to:[]}; g.nodes.forEach(function(n){ n.to = []; n.gt = g.t; INDEX[svc.key][n.id] = n; }); });
-    svc.edges.forEach(function(e){ INDEX[svc.key][e[0]].to.push(e[1]); });
+    svc.edges.forEach(function(e){ INDEX[svc.key][e[0]].to.push(e[1]); if (e[2]) LBL[svc.key+':'+e[0]+'>'+e[1]] = e[2]; });
   }
   var b = document.createElement('button');
   b.className='tab'; b.setAttribute('role','tab'); b.id='tab-'+svc.key;
@@ -980,7 +1103,7 @@ function nodeHtml(c, svc){
   var col = c.c || svc.color;
   return '<h4><span class="t" title="'+esc(c.t)+'">'+esc(c.t)+'</span>'+(c.s?'<span class="size">'+esc(c.s)+'</span>':'')+'</h4>'
     + (c.p?'<div class="path" title="'+esc(c.p)+'">'+esc(c.p)+'</div>':'')
-    + (c.i&&c.i[0]?'<div class="one">'+item(c.i[0])+'</div>':'')
+    + (c.i&&c.i[0] ? (c.system ? '<ul class="sysl">'+c.i.map(function(x){ return '<li>'+item(x)+'</li>'; }).join('')+'</ul>' : '<div class="one">'+item(c.i[0])+'</div>') : '')
     + (c.tags?'<div class="tags">'+c.tags.map(function(t){return '<span class="tag '+(t[1]||'')+'">'+esc(t[0])+'</span>';}).join('')+'</div>':'');
 }
 
@@ -992,7 +1115,7 @@ function layoutGrouped(svc){
   var groups = svc.groups.map(function(g){
     var kids = g.nodes.map(function(n){
       var el = document.createElement('div');
-      el.className = 'node'+(n.cyl?' cyl':'')+(n.feat?' feat':''); el.tabIndex = 0; el.setAttribute('role','button'); el.dataset.id = n.id;
+      el.className = 'node'+(n.cyl?' cyl':'')+(n.feat?' feat':'')+(n.person?' person':'')+(n.system?' system':''); el.tabIndex = 0; el.setAttribute('role','button'); el.dataset.id = n.id;
       el.style.setProperty('--c','var('+(n.c||g.c||(g.data?'--store':svc.color))+')'); el.style.width = g.w+'px';
       el.innerHTML = nodeHtml(n, svc);
       canvas.appendChild(el);
@@ -1001,8 +1124,13 @@ function layoutGrouped(svc){
     });
     return {id:g.id, children:kids, layoutOptions:{'elk.padding':'[top=34,left=14,bottom=14,right=14]', 'elk.spacing.nodeNode':'12'}};
   });
-  var edges = svc.edges.map(function(e){ return {s:e[0], t:e[1]}; });
-  st.edges = edges;
+  var edges = svc.edges.map(function(e){ return {s:e[0], t:e[1], label:e[2]||''}; });
+  st.edges = edges; st.labels = [];
+  edges.forEach(function(e){   // a label (third item of an edge) is measured here and placed by ELK on the wire
+    if (!e.label) return;
+    var el = document.createElement('div'); el.className = 'elabel'; el.textContent = e.label; el.dataset.s = e.s; el.dataset.t = e.t;
+    canvas.appendChild(el); e.el = el; e.w = Math.ceil(el.offsetWidth)+2; e.h = Math.ceil(el.offsetHeight)+2; st.labels.push(el);
+  });
   var graph = {id:'root', layoutOptions:{
       'elk.algorithm':'layered', 'elk.direction':'RIGHT', 'elk.edgeRouting':'ORTHOGONAL',
       'elk.hierarchyHandling':'INCLUDE_CHILDREN',
@@ -1011,6 +1139,10 @@ function layoutGrouped(svc){
       'elk.separateConnectedComponents':'false', 'elk.padding':'[top=20,left=20,bottom=20,right=20]'},
     children: groups,
     edges: edges.map(function(e, i){ return {id:'e'+i, sources:[e.s], targets:[e.t]}; })};
+  if (svc.labelled) {   // long straight stretches next to each box, so every wire has room for its label
+    graph.layoutOptions['elk.layered.spacing.nodeNodeBetweenLayers'] = '120'; graph.layoutOptions['elk.layered.spacing.edgeNodeBetweenLayers'] = '110';
+    groups.forEach(function(g){ g.layoutOptions['elk.layered.spacing.edgeNodeBetweenLayers'] = '110'; });
+  }
   return elk.layout(graph).then(function(res){
     var W = Math.ceil(res.width), H = Math.ceil(res.height), NS = 'http://www.w3.org/2000/svg';
     canvas.style.width = W+'px'; canvas.style.height = H+'px';
@@ -1029,12 +1161,20 @@ function layoutGrouped(svc){
     st.wires = [];
     (res.edges||[]).forEach(function(e, i){
       var off = gpos[e.container] || gpos.root;   // an edge inside one group comes back relative to that group
+      var src = edges[i];
       (e.sections||[]).forEach(function(sec){
         var pts = [sec.startPoint].concat(sec.bendPoints||[], [sec.endPoint]).map(function(q){ return {x:q.x+off.x, y:q.y+off.y}; });
         var path = document.createElementNS(NS,'path');
         path.setAttribute('d', rounded(pts, 6)); path.setAttribute('class','wire'); path.setAttribute('marker-end','url(#ah-'+key+')');
         path.dataset.s = edges[i].s; path.dataset.t = edges[i].t;
         svg.appendChild(path); st.wires.push(path);
+        if (src.el) {   // label sits on the longest horizontal stretch of its wire
+          var best = null;
+          for (var k = 1; k < pts.length; k++) { var a = pts[k-1], b2 = pts[k];
+            if (Math.abs(a.y-b2.y) < 1 && (!best || Math.abs(b2.x-a.x) > best.len)) best = {len:Math.abs(b2.x-a.x), x:(a.x+b2.x)/2, y:a.y}; }
+          if (!best) best = {x:(pts[0].x+pts[pts.length-1].x)/2, y:(pts[0].y+pts[pts.length-1].y)/2};
+          src.el.style.left = (best.x - src.w/2)+'px'; src.el.style.top = (best.y - src.h/2)+'px';
+        }
       });
     });
     canvas.insertBefore(svg, canvas.firstChild);
@@ -1053,10 +1193,10 @@ function layout(key){
   st.nodes = {};
   var children = [];
   svc.lanes.forEach(function(lane, li){
-    var w = li === svc.lanes.length-1 ? 200 : (lane.main ? 240 : 220);
+    var w = lane.w || (li === svc.lanes.length-1 ? 200 : (lane.main ? 240 : 220));
     lane.cards.forEach(function(c){
       var el = document.createElement('div');
-      el.className = 'node'+(c.db?' db':''); el.tabIndex = 0; el.setAttribute('role','button'); el.dataset.id = c.id;
+      el.className = 'node'+(c.db?' db':'')+(c.person?' person':'')+(c.system?' system':''); el.tabIndex = 0; el.setAttribute('role','button'); el.dataset.id = c.id;
       el.style.setProperty('--c','var('+(c.c||svc.color)+')'); el.style.width = w+'px';
       el.innerHTML = nodeHtml(c, svc);
       canvas.appendChild(el);
@@ -1065,19 +1205,35 @@ function layout(key){
     });
   });
   var edges = edgesOf(key);
-  st.edges = edges;
+  st.edges = edges; st.labels = [];
+  edges.forEach(function(e){   // wire labels: measured here, ELK reserves room for them (flat graph only)
+    var text = LBL[key+':'+e.s+'>'+e.t]; if (!text) return;
+    var el = document.createElement('div'); el.className = 'elabel'; el.textContent = text; el.dataset.s = e.s; el.dataset.t = e.t;
+    canvas.appendChild(el); e.el = el; e.w = Math.ceil(el.offsetWidth)+2; e.h = Math.ceil(el.offsetHeight)+2; st.labels.push(el);
+  });
   var graph = {id:'root', layoutOptions:{
       'elk.algorithm':'layered', 'elk.direction':'RIGHT', 'elk.edgeRouting':'ORTHOGONAL',
+      'elk.edgeLabels.placement':'CENTER', 'elk.spacing.edgeLabel':'3', 
       'elk.partitioning.activate':'true', 'elk.separateConnectedComponents':'false',
       'elk.layered.spacing.nodeNodeBetweenLayers': String(svc.gap||90), 'elk.spacing.nodeNode':'16',
       'elk.layered.spacing.edgeNodeBetweenLayers':'22', 'elk.layered.spacing.edgeEdgeBetweenLayers':'8', 'elk.spacing.edgeEdge':'7',
       'elk.layered.crossingMinimization.strategy':'LAYER_SWEEP', 'elk.layered.nodePlacement.strategy':'NETWORK_SIMPLEX',
       'elk.layered.considerModelOrder.strategy':'NODES_AND_EDGES', 'elk.padding':'[top=44,left=24,bottom=24,right=24]'},
     children: children,
-    edges: edges.map(function(e, i){ return {id:'e'+i, sources:[e.s], targets:[e.t]}; })};
+    edges: edges.map(function(e, i){ return {id:'e'+i, sources:[e.s], targets:[e.t], labels: e.el ? [{id:'l'+i, text:e.el.textContent, width:e.w, height:e.h}] : []}; })};   // ELK skips a label with empty text
   return elk.layout(graph).then(function(res){
     var W = Math.ceil(res.width), H = Math.ceil(res.height);
     canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    var nboxes = res.children.map(function(n){ return {x1:n.x, y1:n.y, x2:n.x+n.width, y2:n.y+n.height}; });
+    (res.edges||[]).forEach(function(e, i){ var lb = e.labels && e.labels[0], src = edges[i]; if (!src.el) return;
+      if (!(lb && lb.x != null)) { src.el.hidden = true; return; }
+      var x = lb.x, y = lb.y, w = src.w, h = src.h;
+      // ELK can drop a label into the layer of the box it points at; slide it sideways off any box it covers
+      for (var pass = 0; pass < 3; pass++) {
+        var hit = nboxes.filter(function(r){ return x < r.x2 && r.x1 < x+w && y < r.y2 && r.y1 < y+h; })[0]; if (!hit) break;
+        x = (x + w/2 < (hit.x1+hit.x2)/2) ? hit.x1 - w - 6 : hit.x2 + 6;
+      }
+      src.el.style.left = x+'px'; src.el.style.top = y+'px'; });
     var NS='http://www.w3.org/2000/svg', svg = document.createElementNS(NS,'svg');
     svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('aria-hidden','true');
     svg.innerHTML = '<defs><marker id="ah-'+key+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="context-stroke"/></marker></defs>';
@@ -1206,7 +1362,7 @@ function select(id){
   selected = id;
   var canvas = document.getElementById('c-'+current), dt = document.getElementById('dt-'+current), info = document.getElementById('selinfo');
   Object.keys(st.nodes).forEach(function(k){ st.nodes[k].el.classList.remove('lit','sel'); });
-  st.wires.forEach(function(w){ w.classList.remove('in','out'); });
+  st.wires.concat(st.labels||[]).forEach(function(w){ w.classList.remove('in','out'); });
   if (!id){
     canvas.classList.remove('focus');
     info.textContent = 'กดกล่องเพื่อดูรายละเอียดและไฮไลต์เส้นของกล่องนั้น · Esc ยกเลิก';
@@ -1217,7 +1373,7 @@ function select(id){
   canvas.classList.add('focus');
   st.nodes[id].el.classList.add('sel');
   outs.concat(ins).forEach(function(x){ if (st.nodes[x]) st.nodes[x].el.classList.add('lit'); });
-  st.wires.forEach(function(w){ if (w.dataset.s===id) w.classList.add('out'); if (w.dataset.t===id) w.classList.add('in'); });
+  st.wires.concat(st.labels||[]).forEach(function(w){ if (w.dataset.s===id) w.classList.add('out'); if (w.dataset.t===id) w.classList.add('in'); });
   st.wires.filter(function(w){ return w.dataset.s===id || w.dataset.t===id; }).forEach(function(w){ w.parentNode.appendChild(w); });
   info.innerHTML = '<b>'+esc(c.t)+'</b> · เรียก/ใช้ '+outs.length+' · ถูกเรียกจาก '+ins.length;
   function grouped(list, cls){   // links bucketed by the frame / lane the other box sits in
@@ -1225,7 +1381,7 @@ function select(id){
     var by = {}, order = [];
     list.forEach(function(x){ var g = INDEX[current][x].gt || 'อื่น ๆ'; if (!by[g]) { by[g] = []; order.push(g); } by[g].push(x); });
     return order.map(function(g){ return '<div class="lg"><div class="lgt">'+esc(g)+' · '+by[g].length+'</div><div class="links">'
-      + by[g].map(function(x){ return '<button class="'+cls+'" data-go="'+x+'">'+esc(INDEX[current][x].t)+'</button>'; }).join('')+'</div></div>'; }).join('');
+      + by[g].map(function(x){ var lb = LBL[current+':'+(cls==='out' ? id+'>'+x : x+'>'+id)]; return '<button class="'+cls+'" data-go="'+x+'">'+esc(INDEX[current][x].t)+(lb?' <span class="lbl">— '+esc(lb)+'</span>':'')+'</button>'; }).join('')+'</div></div>'; }).join('');
   }
   function frames(list){ var seen = {}; list.forEach(function(x){ seen[INDEX[current][x].gt || 'อื่น ๆ'] = 1; }); return Object.keys(seen); }
   var note = DETAILS[current+':'+id], isData = !!(c.cyl || c.db);
@@ -1260,7 +1416,7 @@ document.getElementById('zfit').onclick = function(){ fit(current); };
 document.getElementById('z100').onclick = function(){ zoom(current, 1); };
 document.getElementById('common').onchange = document.getElementById('intra').onchange = function(){ var k=current; ST[k].laid=false; ST[k].scale=null; layout(k).then(function(){ select(null); }); };
 var start = (location.hash||'').replace('#','');
-(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function(){ show(INDEX[start] ? start : 'sys', false); });
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function(){ show(INDEX[start] ? start : 'ctx', false); });
 </script>
 
 </body>
